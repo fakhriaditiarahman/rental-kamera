@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -35,10 +36,25 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user()?->only('id_pelanggan', 'nama_pelanggan', 'no_telepon', 'alamat', 'role'),
+                'user' => $user ? [
+                    'id' => $user->id_pelanggan,
+                    'name' => $user->nama_pelanggan,
+                    'phone' => $user->no_telepon,
+                    'address' => $user->alamat,
+                    'role' => $user->role,
+                ] : null,
+            ],
+            'settings' => fn () => $user?->role === 'admin'
+                ? Setting::current()->toContract()
+                : null,
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
             ],
         ];
     }

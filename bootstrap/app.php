@@ -17,6 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => EnsureRole::class,
         ]);
+        $middleware->redirectGuestsTo(
+            fn (Request $request) => $request->is('admin', 'admin/*')
+                ? route('admin.login')
+                : route('login')
+        );
         $middleware->web(append: [
             HandleInertiaRequests::class,
         ]);

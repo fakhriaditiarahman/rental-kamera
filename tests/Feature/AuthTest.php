@@ -79,4 +79,77 @@ class AuthTest extends TestCase
             ->get('/admin')
             ->assertForbidden();
     }
+
+    public function test_admin_login_page_is_available_for_guests(): void
+    {
+        $this->get('/admin/login')->assertOk();
+    }
+
+    public function test_admin_can_login_through_admin_login_page(): void
+    {
+        $admin = User::factory()->create([
+            'no_telepon' => '081234567890',
+            'password_hash' => Hash::make('rahasia123'),
+            'role' => 'admin',
+        ]);
+
+        $this->post('/admin/login', [
+            'phone' => '081234567890',
+            'password' => 'rahasia123',
+        ])->assertRedirect('/admin');
+
+        $this->assertAuthenticatedAs($admin);
+    }
+
+    public function test_admin_always_lands_on_admin_dashboard_regardless_of_intended_url(): void
+    {
+        User::factory()->create([
+            'no_telepon' => '081234567890',
+            'password_hash' => Hash::make('rahasia123'),
+            'role' => 'admin',
+        ]);
+
+        $this->withSession(['url.intended' => '/admin/katalog'])
+            ->post('/admin/login', [
+                'phone' => '081234567890',
+                'password' => 'rahasia123',
+            ])
+            ->assertRedirect('/admin');
+    }
+
+    public function test_customer_cannot_login_through_admin_login_page(): void
+    {
+        User::factory()->create([
+            'no_telepon' => '081298765432',
+            'password_hash' => Hash::make('rahasia123'),
+            'role' => 'customer',
+        ]);
+
+        $this->post('/admin/login', [
+            'phone' => '081298765432',
+            'password' => 'rahasia123',
+        ])->assertSessionHasErrors('phone');
+
+        $this->assertGuest();
+    }
+
+    public function test_guest_is_redirected_to_admin_login_when_opening_admin_area(): void
+    {
+        $this->get('/admin')->assertRedirect('/admin/login');
+        $this->get('/admin/katalog')->assertRedirect('/admin/login');
+    }
+
+    public function test_authenticated_customer_can_open_admin_login_page_to_switch_account(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'customer']))
+            ->get('/admin/login')
+            ->assertOk();
+    }
+
+    public function test_authenticated_admin_is_redirected_to_dashboard_from_admin_login_page(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin']))
+            ->get('/admin/login')
+            ->assertRedirect('/admin');
+    }
 }

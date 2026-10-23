@@ -1,28 +1,34 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { router } from '@inertiajs/react';
 import {
+  AlertCircle,
   ArrowUpRight,
   Bell,
   CalendarDays,
   Camera,
   Check,
   ChevronDown,
+  CircleCheck,
   CircleHelp,
   Clock3,
+  FileText,
   LayoutDashboard,
+  LockKeyhole,
   LogOut,
   Menu,
   Package,
   Plus,
+  Save,
   Search,
   Settings2,
+  ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  Store,
   Users,
   X,
   Eye,
   EyeOff,
-  LockKeyhole,
   Phone,
   UserRound,
 } from 'lucide-react';
@@ -55,16 +61,14 @@ function IconButton({ label, children, onClick }) {
 function Logo() {
   return (
     <div className="brand">
-      <span className="brand-mark"><Camera size={18} strokeWidth={2.4} /></span>
-      <span>
-        <strong>Sewa</strong>
-        <em>Kamera</em>
+      <span className="brand-mark">
+        <img src="/image/logo.webp" alt="Kamera Kita" style={{ width: 80, height: 80, objectFit: 'contain' }} />
       </span>
     </div>
   );
 }
 
-function Sidebar({ active, onChange, open, onClose, role, onRoleChange, user }) {
+function Sidebar({ active, onChange, open, onClose, role, user }) {
   const nav = role === 'customer'
     ? [
       { id: 'customer-home', label: 'Dashboard', icon: LayoutDashboard },
@@ -85,12 +89,6 @@ function Sidebar({ active, onChange, open, onClose, role, onRoleChange, user }) 
         <Logo />
         <IconButton label="Tutup navigasi" onClick={onClose}><X size={18} /></IconButton>
       </div>
-      <button className="workspace-switcher" onClick={() => onRoleChange(role === 'admin' ? 'customer' : 'admin')}>
-        <span className="workspace-avatar">SK</span>
-        <span><b>{role === 'customer' ? 'Akun pelanggan' : 'Studio Kamera'}</b><small>{role === 'customer' ? 'Ruang sewa pribadi' : 'Workspace admin'}</small></span>
-        <ChevronDown size={15} />
-        <span className="role-switch">Ganti</span>
-      </button>
       <nav className="nav-list" aria-label="Navigasi utama">
         <p className="nav-label">Workspace</p>
         {nav.map(({ id, label, icon: NavIcon, count }) => (
@@ -101,8 +99,8 @@ function Sidebar({ active, onChange, open, onClose, role, onRoleChange, user }) 
           </button>
         ))}
         <p className="nav-label nav-label-spaced">Pengaturan</p>
-        <button className="nav-item" onClick={() => onChange('settings')}><Settings2 size={18} /><span>Pengaturan</span></button>
-        <button className="nav-item" onClick={() => onChange('help')}><CircleHelp size={18} /><span>Pusat bantuan</span></button>
+        <button className={`nav-item ${active === 'settings' ? 'active' : ''}`} onClick={() => onChange(role === 'customer' ? 'customer-profile' : 'settings')}><Settings2 size={18} /><span>Pengaturan</span></button>
+        <button className={`nav-item ${active === 'help' ? 'active' : ''}`} onClick={() => onChange(role === 'customer' ? 'customer-home' : 'help')}><CircleHelp size={18} /><span>Pusat bantuan</span></button>
       </nav>
       <div className="sidebar-foot">
         <div className="profile-row"><span className="profile-avatar">{getInitials(user?.name || (role === 'customer' ? 'Pelanggan' : 'Ardi Rahman'))}</span><span><b>{user?.name || (role === 'customer' ? 'Pelanggan' : 'Ardi Rahman')}</b><small>{role === 'customer' ? 'Pelanggan' : 'Administrator'}</small></span><ChevronDown size={15} /></div>
@@ -170,17 +168,53 @@ function PublicHome({ onNavigate, onSelectCamera }) {
       <section className="public-search-strip"><div><p className="eyebrow">Mulai dari kebutuhanmu</p><h2>Kapan kamu butuh kamera?</h2></div><div className="public-search-fields"><label><CalendarDays size={17} /><span><small>Tanggal mulai</small><b>24 September 2024</b></span></label><span className="search-divider" /><label><CalendarDays size={17} /><span><small>Tanggal kembali</small><b>27 September 2024</b></span></label><button className="primary-button" onClick={() => onNavigate('customer-catalog')}><Search size={17} /> Cek ketersediaan</button></div></section>
       <section className="public-section" id="koleksi"><div className="public-section-heading"><div><p className="eyebrow">Pilihan kami</p><h2>Kamera yang siap<br /><em>menemani cerita.</em></h2></div><button className="text-button" onClick={() => onNavigate('customer-catalog')}>Lihat semua kamera <ArrowUpRight size={16} /></button></div><div className="featured-grid">{cameras.slice(0, 3).map((camera, index) => <article className={`featured-card featured-${index}`} key={camera.id} onClick={() => onSelectCamera(camera)}><div className={`featured-image ${camera.tone}`}><span>{camera.tag}</span><Camera size={100} strokeWidth={.85} /></div><div className="featured-card-copy"><div><h3>{camera.name}</h3><p>{camera.type}</p></div><b>{formatCurrency(camera.rate)}<small>/ hari</small></b></div></article>)}</div></section>
       <section className="public-process" id="cara-sewa"><div className="public-process-intro"><p className="eyebrow">Semudah itu</p><h2>Dari ide menjadi<br /><em>kenyataan.</em></h2><p>Tanpa proses yang rumit. Pilih gear, tentukan tanggal, dan biarkan kami menyiapkan sisanya.</p><button className="secondary-button" onClick={() => onNavigate('customer-catalog')}>Mulai eksplorasi <ArrowUpRight size={15} /></button></div><div className="process-steps"><div><span>01</span><CalendarDays size={21} /><h3>Pilih tanggal</h3><p>Tentukan kapan kamu membutuhkan kamera dan berapa lama.</p></div><div><span>02</span><Camera size={21} /><h3>Pilih kamera</h3><p>Temukan gear yang sesuai dengan kebutuhan ceritamu.</p></div><div><span>03</span><Check size={21} /><h3>Siap berkarya</h3><p>Ambil kamera, buat sesuatu yang berarti, dan kembalikan dengan mudah.</p></div></div></section>
-      <section className="public-quote" id="tentang"><span className="quote-mark">“</span><blockquote>Alat yang tepat tidak membuat cerita menjadi lebih baik. Tapi ia membantu cerita itu sampai kepada orang yang tepat.</blockquote><span className="quote-caption">— Prinsip kami di Sewa Kamera</span></section>
-      <footer className="public-footer"><Logo /><span>© 2024 Sewa Kamera. Dibuat untuk para pembuat cerita.</span><div><button onClick={() => router.get('/login')}>Masuk pelanggan</button><button onClick={() => router.get('/login')}>Admin</button></div></footer>
+      <section className="public-quote" id="tentang"><span className="quote-mark">“</span><blockquote>Alat yang tepat tidak membuat cerita menjadi lebih baik. Tapi ia membantu cerita itu sampai kepada orang yang tepat.</blockquote><span className="quote-caption">— Prinsip kami di Kamera Kita</span></section>
+      <footer className="public-footer">
+        <div className="public-footer-grid">
+          <div className="public-footer-brand">
+            <Logo />
+            <p>Gear pilihan untuk produksi film, konten kreatif, dan momen berharga. Proses sederhana, transparan, dan siap bantu mewujudkan ceritamu.</p>
+          </div>
+          <div className="public-footer-col">
+            <h4>Eksplorasi</h4>
+            <button onClick={() => document.getElementById('koleksi')?.scrollIntoView({ behavior: 'smooth' })}>Koleksi</button>
+            <button onClick={() => document.getElementById('cara-sewa')?.scrollIntoView({ behavior: 'smooth' })}>Cara sewa</button>
+            <button onClick={() => document.getElementById('tentang')?.scrollIntoView({ behavior: 'smooth' })}>Tentang kami</button>
+          </div>
+          <div className="public-footer-col">
+            <h4>Akun</h4>
+            <button onClick={() => router.get('/login')}>Masuk pelanggan</button>
+            <button onClick={() => onNavigate('customer-catalog')}>Jelajahi katalog</button>
+            <button onClick={() => router.get('/admin/login')}>Halaman admin</button>
+          </div>
+        </div>
+        <div className="public-footer-bar">
+          <span>© 2026 Kamera Kita</span>
+          <span>Dibuat untuk para pembuat cerita</span>
+        </div>
+      </footer>
     </div>
   );
 }
 
-function Topbar({ onMenu, role }) {
+function Topbar({ onMenu, role, active }) {
+  const labels = {
+    overview: 'Overview',
+    catalog: 'Katalog kamera',
+    rentals: 'Penyewaan',
+    customers: 'Pelanggan',
+    inventory: 'Inventaris',
+    settings: 'Pengaturan',
+    help: 'Pusat bantuan',
+    'customer-home': 'Dashboard',
+    'customer-catalog': 'Cari kamera',
+    'customer-rentals': 'Sewa saya',
+    'customer-profile': 'Profil saya',
+  };
   return (
     <header className="topbar">
       <IconButton label="Buka navigasi" onClick={onMenu}><Menu size={20} /></IconButton>
-      <div className="breadcrumb"><span>{role === 'customer' ? 'Akun pelanggan' : 'Workspace admin'}</span><b>/</b><strong>{role === 'customer' ? 'Dashboard' : 'Overview'}</strong></div>
+      <div className="breadcrumb"><span>{role === 'customer' ? 'Akun pelanggan' : 'Workspace admin'}</span><b>/</b><strong>{labels[active] || (role === 'customer' ? 'Dashboard' : 'Overview')}</strong></div>
       <div className="topbar-actions">
         <button className="date-chip"><CalendarDays size={16} /> 18 — 24 Sep 2024 <ChevronDown size={14} /></button>
         <IconButton label="Notifikasi"><Bell size={19} /></IconButton>
@@ -239,17 +273,71 @@ function Overview({ onNavigate }) {
   );
 }
 
-function Catalog({ onSelectCamera }) {
+function Catalog({ onSelectCamera, cameras: cameraSource = cameras, canManage = false }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('Semua');
-  const filtered = useMemo(() => cameras.filter((camera) => (filter === 'Semua' || camera.status === filter) && camera.name.toLowerCase().includes(query.toLowerCase())), [query, filter]);
+  const [items, setItems] = useState(cameraSource);
+  const [addOpen, setAddOpen] = useState(false);
+  useEffect(() => { setItems(cameraSource); }, [cameraSource]);
+  const filtered = useMemo(() => items.filter((camera) => (filter === 'Semua' || camera.status === filter) && camera.name.toLowerCase().includes(query.toLowerCase())), [items, query, filter]);
   return (
     <>
-      <section className="page-heading compact"><div><p className="eyebrow">Inventaris produk</p><h1>Katalog kamera</h1><p className="heading-subtitle">Kelola koleksi kamera yang tersedia untuk disewa.</p></div><button className="primary-button"><Plus size={17} /> Tambah kamera</button></section>
+      <section className="page-heading compact"><div><p className="eyebrow">Inventaris produk</p><h1>Katalog kamera</h1><p className="heading-subtitle">Kelola koleksi kamera yang tersedia untuk disewa.</p></div>{canManage && <button className="primary-button" onClick={() => setAddOpen(true)}><Plus size={17} /> Tambah kamera</button>}</section>
       <section className="catalog-toolbar"><label className="search-field"><Search size={17} /><input placeholder="Cari nama kamera..." value={query} onChange={(event) => setQuery(event.target.value)} /></label><div className="filter-tabs">{['Semua', 'Tersedia', 'Terbatas', 'Disewa'].map((item) => <button key={item} className={filter === item ? 'active' : ''} onClick={() => setFilter(item)}>{item}</button>)}</div><button className="filter-button"><SlidersHorizontal size={16} /> Filter</button></section>
       <section className="camera-grid">{filtered.map((camera) => <article className="camera-card" key={camera.id} onClick={() => onSelectCamera(camera)}><div className={`camera-image ${camera.tone}`}><span className="camera-tag">{camera.tag}</span><Camera size={76} strokeWidth={1.1} /><span className="camera-image-label">PHOTO / DEMO</span></div><div className="camera-card-body"><div className="camera-title"><div><h3>{camera.name}</h3><p>{camera.type}</p></div><button className="icon-button" aria-label={`Opsi ${camera.name}`}><MoreIcon /></button></div><div className="camera-card-foot"><span><b>{formatCurrency(camera.rate)}</b> <small>/ hari</small></span><StatusBadge status={camera.status} /></div></div></article>)}</section>
       {filtered.length === 0 && <div className="empty-state"><Search size={27} /><h2>Kamera tidak ditemukan</h2><p>Coba gunakan kata kunci atau filter yang berbeda.</p></div>}
+      {addOpen && <AddCameraModal onClose={() => setAddOpen(false)} />}
     </>
+  );
+}
+
+const emptyCameraForm = { name: '', type: 'Mirrorless', rate: '', stock: '1', status: 'Tersedia' };
+
+function AddCameraModal({ onClose }) {
+  const [values, setValues] = useState(emptyCameraForm);
+  const [errors, setErrors] = useState({});
+  const [processing, setProcessing] = useState(false);
+  const update = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }));
+  const submit = (event) => {
+    event.preventDefault();
+    const nextErrors = {};
+    if (!values.name.trim()) nextErrors.name = 'Nama kamera wajib diisi.';
+    if (!values.rate) nextErrors.rate = 'Harga sewa wajib diisi.';
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
+      return;
+    }
+    setProcessing(true);
+    const payload = { name: values.name.trim(), type: values.type, rate: Number(values.rate), stock: Number(values.stock || 0), status: values.status };
+    router.post('/admin/kamera', payload, {
+      preserveScroll: true,
+      preserveState: true,
+      onSuccess: () => {
+        onClose();
+      },
+      onError: (serverErrors) => setErrors(serverErrors),
+      onFinish: () => setProcessing(false),
+    });
+  };
+  return (
+    <div className="modal-scrim" onClick={onClose}>
+      <div className="camera-form-modal" role="dialog" aria-modal="true" aria-labelledby="add-camera-title" onClick={(event) => event.stopPropagation()}>
+        <button className="modal-close" onClick={onClose} aria-label="Tutup"><X size={18} /></button>
+        <div className="form-modal-head"><p className="eyebrow">Inventaris produk</p><h2 id="add-camera-title">Tambah kamera</h2><p>Lengkapi detail kamera baru untuk koleksi rental.</p></div>
+        <form className="camera-form" onSubmit={submit} noValidate>
+          <label className={`form-field ${errors.name ? 'has-error' : ''}`}><span>Nama kamera</span><input value={values.name} onChange={update('name')} placeholder="Contoh: Sony α7 IV" autoFocus />{errors.name && <small className="form-error">{errors.name}</small>}</label>
+          <div className="camera-form-row">
+            <label className="form-field"><span>Jenis kamera</span><select value={values.type} onChange={update('type')}>{['Mirrorless', 'DSLR', 'Cinema Camera', 'Action Camera', 'Lainnya'].map((type) => <option key={type} value={type}>{type}</option>)}</select></label>
+            <label className="form-field"><span>Status ketersediaan</span><select value={values.status} onChange={update('status')}>{['Tersedia', 'Terbatas', 'Disewa', 'Tidak tersedia'].map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
+          </div>
+          <div className="camera-form-row">
+            <label className={`form-field ${errors.rate ? 'has-error' : ''}`}><span>Harga sewa / hari</span><input type="number" min="0" step="1000" inputMode="numeric" value={values.rate} onChange={update('rate')} placeholder="275000" />{errors.rate && <small className="form-error">{errors.rate}</small>}</label>
+            <label className={`form-field ${errors.stock ? 'has-error' : ''}`}><span>Stok unit</span><input type="number" min="0" step="1" inputMode="numeric" value={values.stock} onChange={update('stock')} />{errors.stock && <small className="form-error">{errors.stock}</small>}</label>
+          </div>
+          <div className="camera-form-actions"><button type="button" className="secondary-button" onClick={onClose}>Batal</button><button type="submit" className="primary-button" disabled={processing}>{processing ? 'Menyimpan...' : 'Simpan kamera'}</button></div>
+        </form>
+      </div>
+    </div>
   );
 }
 
@@ -265,6 +353,516 @@ function Rentals() {
     <>
       <section className="page-heading compact"><div><p className="eyebrow">Operasional</p><h1>Penyewaan</h1><p className="heading-subtitle">Pantau dan proses seluruh pengajuan penyewaan.</p></div><button className="primary-button"><Plus size={17} /> Buat transaksi</button></section>
       <section className="panel rentals-panel"><div className="panel-heading"><div><h2>Semua transaksi</h2><p>{rentals.length} transaksi tercatat pada periode ini.</p></div><label className="search-field small"><Search size={16} /><input placeholder="Cari transaksi..." /></label></div><div className="filter-tabs table-tabs">{statuses.map((status) => <button key={status} className={active === status ? 'active' : ''} onClick={() => setActive(status)}>{status}</button>)}</div><div className="table-wrap"><table><thead><tr><th>ID transaksi</th><th>Pelanggan</th><th>Kamera</th><th>Periode</th><th>Total</th><th>Status</th><th /></tr></thead><tbody>{rows.map((rental) => <tr key={rental.id}><td className="mono">{rental.id}</td><td><div className="customer-cell"><span className="customer-avatar">{rental.initials}</span><b>{rental.customer}</b></div></td><td>{rental.product}</td><td>{rental.dates}</td><td className="money">{formatCurrency(rental.total)}</td><td><StatusBadge status={rental.status} /></td><td><button className="row-action"><MoreIcon /></button></td></tr>)}</tbody></table></div></section>
+    </>
+  );
+}
+
+const DEFAULT_SETTINGS = {
+  nama_usaha: 'Kamera Kita',
+  email: '',
+  no_telepon: '',
+  alamat: '',
+  jam_buka: '09:00',
+  jam_tutup: '20:00',
+  durasi_minimum: 1,
+  deposit: 0,
+  denda_per_hari: 0,
+  notifikasi_email: true,
+  notifikasi_whatsapp: false,
+  pengingat_pengembalian: true,
+};
+
+const SETTINGS_TABS = [
+  { id: 'profil', label: 'Profil admin', icon: UserRound },
+  { id: 'usaha', label: 'Informasi usaha', icon: Store },
+  { id: 'kebijakan', label: 'Kebijakan sewa', icon: SlidersHorizontal },
+  { id: 'notifikasi', label: 'Notifikasi', icon: Bell },
+  { id: 'keamanan', label: 'Keamanan', icon: LockKeyhole },
+];
+
+const SETTINGS_FIELD_TAB = {
+  nama_usaha: 'usaha',
+  email: 'usaha',
+  no_telepon: 'usaha',
+  alamat: 'usaha',
+  jam_buka: 'usaha',
+  jam_tutup: 'usaha',
+  durasi_minimum: 'kebijakan',
+  deposit: 'kebijakan',
+  denda_per_hari: 'kebijakan',
+  notifikasi_email: 'notifikasi',
+  notifikasi_whatsapp: 'notifikasi',
+  pengingat_pengembalian: 'notifikasi',
+};
+
+const SETTINGS_CONTRACT = [
+  {
+    title: 'GET /admin/pengaturan',
+    description: 'Props Inertia yang dipakai halaman. `settings` juga dibagikan lewat shared props untuk role admin.',
+    code: `{
+  "component": "App",
+  "props": {
+    "auth": { "user": { "id": 1, "name": "Admin Sewa Kamera", "phone": "081234567890", "address": "Kantor Sewa Kamera", "role": "admin" } },
+    "settings": {
+      "nama_usaha": "Kamera Kita",
+      "email": "halo@kamerakita.id",
+      "no_telepon": "081234567890",
+      "alamat": "Jl. Contoh No. 1",
+      "jam_buka": "09:00",
+      "jam_tutup": "20:00",
+      "durasi_minimum": 1,
+      "deposit": 0,
+      "denda_per_hari": 0,
+      "notifikasi_email": true,
+      "notifikasi_whatsapp": false,
+      "pengingat_pengembalian": true
+    },
+    "flash": { "success": "Pengaturan workspace berhasil disimpan.", "error": null }
+  }
+}`,
+  },
+  {
+    title: 'PATCH /admin/pengaturan',
+    description: 'Menyimpan informasi usaha, kebijakan sewa, dan preferensi notifikasi. Respons sukses berupa redirect ke halaman Pengaturan dengan flash message.',
+    code: `{
+  "nama_usaha": "Kamera Kita",
+  "email": "halo@kamerakita.id",
+  "no_telepon": "081234567890",
+  "alamat": "Jl. Contoh No. 1",
+  "jam_buka": "09:00",
+  "jam_tutup": "20:00",
+  "durasi_minimum": 1,
+  "deposit": 0,
+  "denda_per_hari": 0,
+  "notifikasi_email": true,
+  "notifikasi_whatsapp": false,
+  "pengingat_pengembalian": true
+}`,
+  },
+  {
+    title: 'PATCH /admin/pengaturan/profil',
+    description: 'Memperbarui identitas admin yang sedang masuk. Nomor telepon harus unik dan mengikuti format nomor Indonesia.',
+    code: `{
+  "name": "Admin Sewa Kamera",
+  "phone": "081234567890",
+  "address": "Kantor Sewa Kamera"
+}`,
+  },
+  {
+    title: 'PUT /admin/pengaturan/password',
+    description: 'Mengganti password admin. Password saat ini diverifikasi terhadap hash di tabel `pelanggan`.',
+    code: `{
+  "current_password": "password-lama",
+  "password": "password-baru",
+  "password_confirmation": "password-baru"
+}`,
+  },
+];
+
+function normalizeSettings(settings) {
+  const merged = { ...DEFAULT_SETTINGS, ...(settings || {}) };
+  return {
+    ...merged,
+    nama_usaha: merged.nama_usaha || 'Kamera Kita',
+    email: merged.email || '',
+    no_telepon: merged.no_telepon || '',
+    alamat: merged.alamat || '',
+    jam_buka: merged.jam_buka || '09:00',
+    jam_tutup: merged.jam_tutup || '20:00',
+    durasi_minimum: merged.durasi_minimum ?? 1,
+    deposit: merged.deposit ?? 0,
+    denda_per_hari: merged.denda_per_hari ?? 0,
+  };
+}
+
+function ToggleField({ id, title, description, checked, onChange }) {
+  return (
+    <label className={`toggle-field ${checked ? 'is-on' : ''}`} htmlFor={id}>
+      <span className="toggle-copy"><b>{title}</b><small>{description}</small></span>
+      <span className="toggle-control">
+        <input id={id} type="checkbox" checked={checked} onChange={onChange} />
+        <span className="toggle-track" aria-hidden="true"><span /></span>
+      </span>
+    </label>
+  );
+}
+
+function SettingsPasswordField({ id, label, value, onChange, error, hint, autoComplete }) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <label className={`form-field ${error ? 'has-error' : ''}`} htmlFor={id}>
+      <span>{label}</span>
+      <div className="settings-password-wrap">
+        <input id={id} type={visible ? 'text' : 'password'} value={value} onChange={onChange} autoComplete={autoComplete} />
+        <button type="button" className="settings-password-toggle" onClick={() => setVisible((current) => !current)} aria-label={visible ? 'Sembunyikan password' : 'Tampilkan password'}>
+          {visible ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
+      </div>
+      {error && <small className="form-error">{error}</small>}
+      {!error && hint && <small className="settings-field-hint">{hint}</small>}
+    </label>
+  );
+}
+
+function ContractDocsModal({ onClose }) {
+  return (
+    <div className="modal-scrim" onClick={onClose}>
+      <div className="settings-docs" role="dialog" aria-modal="true" aria-labelledby="settings-docs-title" onClick={(event) => event.stopPropagation()}>
+        <button className="modal-close" onClick={onClose} aria-label="Tutup dokumentasi"><X size={18} /></button>
+        <div className="form-modal-head settings-docs-head">
+          <p className="eyebrow">Kontrak data</p>
+          <h2 id="settings-docs-title">Dokumentasi modul Pengaturan</h2>
+          <p>Bentuk data dan endpoint yang dipakai halaman ini. Pertahankan kontrak ini saat memindahkan logika ke action Laravel lain.</p>
+        </div>
+        <div className="settings-docs-body">
+          {SETTINGS_CONTRACT.map((section) => (
+            <section className="settings-docs-section" key={section.title}>
+              <h3>{section.title}</h3>
+              <p>{section.description}</p>
+              <pre><code>{section.code}</code></pre>
+            </section>
+          ))}
+          <p className="settings-docs-note">Validasi gagal mengembalikan status 422 dengan key error sesuai nama field, sehingga form dapat menampilkan pesan di tab yang tepat.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Settings({ user, settings, flash }) {
+  const [activeTab, setActiveTab] = useState('profil');
+  const [values, setValues] = useState(() => normalizeSettings(settings));
+  const [profile, setProfile] = useState({ name: user?.name || '', phone: user?.phone || '', address: user?.address || '' });
+  const [passwords, setPasswords] = useState({ current_password: '', password: '', password_confirmation: '' });
+  const [settingErrors, setSettingErrors] = useState({});
+  const [profileErrors, setProfileErrors] = useState({});
+  const [passwordErrors, setPasswordErrors] = useState({});
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [notice, setNotice] = useState(flash?.success || '');
+  const [errorNotice, setErrorNotice] = useState(flash?.error || '');
+  const [docsOpen, setDocsOpen] = useState(false);
+
+  useEffect(() => {
+    setValues(normalizeSettings(settings));
+  }, [settings]);
+
+  useEffect(() => {
+    setProfile({ name: user?.name || '', phone: user?.phone || '', address: user?.address || '' });
+  }, [user]);
+
+  useEffect(() => {
+    if (flash?.success) setNotice(flash.success);
+    if (flash?.error) setErrorNotice(flash.error);
+  }, [flash?.success, flash?.error]);
+
+  const updateSetting = (field) => (event) => {
+    const { type, checked, value } = event.target;
+    setValues((current) => ({ ...current, [field]: type === 'checkbox' ? checked : value }));
+  };
+
+  const updateProfile = (field) => (event) => {
+    setProfile((current) => ({ ...current, [field]: event.target.value }));
+  };
+
+  const updatePassword = (field) => (event) => {
+    setPasswords((current) => ({ ...current, [field]: event.target.value }));
+  };
+
+  const showResponseNotice = (message) => {
+    setNotice(message);
+    setErrorNotice('');
+  };
+
+  const handleSettingsErrors = (serverErrors) => {
+    setSettingErrors(serverErrors);
+    const firstKey = Object.keys(serverErrors)[0];
+    if (firstKey && SETTINGS_FIELD_TAB[firstKey]) setActiveTab(SETTINGS_FIELD_TAB[firstKey]);
+  };
+
+  const saveSettings = (event) => {
+    event.preventDefault();
+    setSettingErrors({});
+    setNotice('');
+    setErrorNotice('');
+    setSavingSettings(true);
+    router.patch('/admin/pengaturan', {
+      nama_usaha: values.nama_usaha.trim(),
+      email: values.email.trim() || null,
+      no_telepon: values.no_telepon.trim() || null,
+      alamat: values.alamat.trim() || null,
+      jam_buka: values.jam_buka,
+      jam_tutup: values.jam_tutup,
+      durasi_minimum: Number(values.durasi_minimum),
+      deposit: Number(values.deposit),
+      denda_per_hari: Number(values.denda_per_hari),
+      notifikasi_email: Boolean(values.notifikasi_email),
+      notifikasi_whatsapp: Boolean(values.notifikasi_whatsapp),
+      pengingat_pengembalian: Boolean(values.pengingat_pengembalian),
+    }, {
+      preserveScroll: true,
+      onSuccess: () => showResponseNotice('Pengaturan workspace berhasil disimpan.'),
+      onError: handleSettingsErrors,
+      onFinish: () => setSavingSettings(false),
+    });
+  };
+
+  const saveProfile = (event) => {
+    event.preventDefault();
+    const nextErrors = {};
+    if (!profile.name.trim()) nextErrors.name = 'Nama lengkap wajib diisi.';
+    if (!profile.phone.trim()) nextErrors.phone = 'Nomor telepon wajib diisi.';
+    if (!profile.address.trim()) nextErrors.address = 'Alamat wajib diisi.';
+    setProfileErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
+    setNotice('');
+    setErrorNotice('');
+    setSavingProfile(true);
+    router.patch('/admin/pengaturan/profil', profile, {
+      preserveScroll: true,
+      onSuccess: () => showResponseNotice('Profil admin berhasil diperbarui.'),
+      onError: (serverErrors) => setProfileErrors(serverErrors),
+      onFinish: () => setSavingProfile(false),
+    });
+  };
+
+  const savePassword = (event) => {
+    event.preventDefault();
+    const nextErrors = {};
+    if (!passwords.current_password) nextErrors.current_password = 'Password saat ini wajib diisi.';
+    if (!passwords.password) nextErrors.password = 'Password baru wajib diisi.';
+    else if (passwords.password.length < 8) nextErrors.password = 'Password baru minimal 8 karakter.';
+    if (passwords.password !== passwords.password_confirmation) nextErrors.password_confirmation = 'Konfirmasi password baru harus sama.';
+    setPasswordErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
+    setNotice('');
+    setErrorNotice('');
+    setSavingPassword(true);
+    router.put('/admin/pengaturan/password', passwords, {
+      preserveScroll: true,
+      onSuccess: () => {
+        setPasswords({ current_password: '', password: '', password_confirmation: '' });
+        showResponseNotice('Password berhasil diperbarui.');
+      },
+      onError: (serverErrors) => setPasswordErrors(serverErrors),
+      onFinish: () => setSavingPassword(false),
+    });
+  };
+
+  const handleTabKeyDown = (event) => {
+    const tabs = Array.from(event.currentTarget.querySelectorAll('[role="tab"]'));
+    const currentIndex = tabs.indexOf(document.activeElement);
+    if (currentIndex === -1) return;
+    let nextIndex = currentIndex;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabs.length;
+    else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    else if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = tabs.length - 1;
+    else return;
+    event.preventDefault();
+    tabs[nextIndex].focus();
+    setActiveTab(SETTINGS_TABS[nextIndex].id);
+  };
+
+  const fieldError = (field) => settingErrors[field];
+
+  return (
+    <>
+      <section className="page-heading compact settings-heading">
+        <div>
+          <p className="eyebrow">Workspace</p>
+          <h1>Pengaturan</h1>
+          <p className="heading-subtitle">Kelola profil admin, informasi usaha, kebijakan sewa, dan preferensi operasional.</p>
+        </div>
+        <button className="secondary-button" onClick={() => setDocsOpen(true)}><FileText size={16} /> Dokumentasi kontrak</button>
+      </section>
+
+      {notice && <div className="settings-alert" role="status"><CircleCheck size={17} /><span>{notice}</span><button type="button" onClick={() => setNotice('')} aria-label="Tutup notifikasi"><X size={15} /></button></div>}
+      {errorNotice && <div className="settings-alert is-error" role="alert"><AlertCircle size={17} /><span>{errorNotice}</span><button type="button" onClick={() => setErrorNotice('')} aria-label="Tutup notifikasi"><X size={15} /></button></div>}
+
+      <section className="settings-shell">
+        <nav className="settings-nav" role="tablist" aria-label="Bagian pengaturan" aria-orientation="vertical" onKeyDown={handleTabKeyDown}>
+          {SETTINGS_TABS.map(({ id, label, icon: TabIcon }) => (
+            <button
+              key={id}
+              role="tab"
+              id={`settings-tab-${id}`}
+              aria-selected={activeTab === id}
+              aria-controls={`settings-panel-${id}`}
+              tabIndex={activeTab === id ? 0 : -1}
+              className={`settings-nav-item ${activeTab === id ? 'active' : ''}`}
+              onClick={() => setActiveTab(id)}
+            >
+              <TabIcon size={17} />
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
+
+        <div className="settings-panel panel" role="tabpanel" id={`settings-panel-${activeTab}`} aria-labelledby={`settings-tab-${activeTab}`}>
+          {activeTab === 'profil' && (
+            <>
+              <div className="settings-panel-head">
+                <div><p className="eyebrow">Akun</p><h2>Profil admin</h2><p>Identitas yang dipakai untuk masuk dan berkomunikasi di workspace.</p></div>
+                <span className="settings-badge"><ShieldCheck size={15} /> Administrator</span>
+              </div>
+              <form className="settings-form" onSubmit={saveProfile} noValidate>
+                <div className="settings-form-grid">
+                  <label className={`form-field ${profileErrors.name ? 'has-error' : ''}`}>
+                    <span>Nama lengkap</span>
+                    <input value={profile.name} onChange={updateProfile('name')} placeholder="Nama administrator" autoComplete="name" />
+                    {profileErrors.name && <small className="form-error">{profileErrors.name}</small>}
+                  </label>
+                  <label className={`form-field ${profileErrors.phone ? 'has-error' : ''}`}>
+                    <span>Nomor telepon</span>
+                    <input value={profile.phone} onChange={updateProfile('phone')} placeholder="Contoh: 081234567890" inputMode="tel" autoComplete="tel" />
+                    {profileErrors.phone && <small className="form-error">{profileErrors.phone}</small>}
+                  </label>
+                  <label className={`form-field settings-field-full ${profileErrors.address ? 'has-error' : ''}`}>
+                    <span>Alamat</span>
+                    <textarea rows="3" value={profile.address} onChange={updateProfile('address')} placeholder="Alamat lengkap admin" autoComplete="street-address" />
+                    {profileErrors.address && <small className="form-error">{profileErrors.address}</small>}
+                  </label>
+                </div>
+                <div className="settings-form-actions">
+                  <span className="settings-hint">Nomor telepon dipakai untuk login ke area admin.</span>
+                  <button type="submit" className="primary-button" disabled={savingProfile}><Save size={16} /> {savingProfile ? 'Menyimpan...' : 'Simpan profil'}</button>
+                </div>
+              </form>
+            </>
+          )}
+
+          {activeTab === 'usaha' && (
+            <>
+              <div className="settings-panel-head">
+                <div><p className="eyebrow">Identitas</p><h2>Informasi usaha</h2><p>Data ini menjadi acuan informasi rental yang ditampilkan ke pelanggan.</p></div>
+                <span className="settings-badge"><Store size={15} /> Workspace</span>
+              </div>
+              <form className="settings-form" onSubmit={saveSettings} noValidate>
+                <div className="settings-form-grid">
+                  <label className={`form-field ${fieldError('nama_usaha') ? 'has-error' : ''}`}>
+                    <span>Nama usaha</span>
+                    <input value={values.nama_usaha} onChange={updateSetting('nama_usaha')} placeholder="Nama rental kamera" />
+                    {fieldError('nama_usaha') && <small className="form-error">{fieldError('nama_usaha')}</small>}
+                  </label>
+                  <label className={`form-field ${fieldError('email') ? 'has-error' : ''}`}>
+                    <span>Email operasional</span>
+                    <input type="email" value={values.email} onChange={updateSetting('email')} placeholder="halo@kamerakita.id" autoComplete="email" />
+                    {fieldError('email') && <small className="form-error">{fieldError('email')}</small>}
+                  </label>
+                  <label className={`form-field ${fieldError('no_telepon') ? 'has-error' : ''}`}>
+                    <span>Nomor telepon usaha</span>
+                    <input value={values.no_telepon} onChange={updateSetting('no_telepon')} placeholder="Contoh: 081234567890" inputMode="tel" autoComplete="tel" />
+                    {fieldError('no_telepon') && <small className="form-error">{fieldError('no_telepon')}</small>}
+                  </label>
+                  <label className={`form-field ${fieldError('jam_buka') ? 'has-error' : ''}`}>
+                    <span>Jam buka</span>
+                    <input type="time" value={values.jam_buka} onChange={updateSetting('jam_buka')} />
+                    {fieldError('jam_buka') && <small className="form-error">{fieldError('jam_buka')}</small>}
+                  </label>
+                  <label className={`form-field settings-field-full ${fieldError('alamat') ? 'has-error' : ''}`}>
+                    <span>Alamat usaha</span>
+                    <textarea rows="3" value={values.alamat} onChange={updateSetting('alamat')} placeholder="Alamat lengkap tempat pengambilan kamera" />
+                    {fieldError('alamat') && <small className="form-error">{fieldError('alamat')}</small>}
+                  </label>
+                  <label className={`form-field ${fieldError('jam_tutup') ? 'has-error' : ''}`}>
+                    <span>Jam tutup</span>
+                    <input type="time" value={values.jam_tutup} onChange={updateSetting('jam_tutup')} />
+                    {fieldError('jam_tutup') && <small className="form-error">{fieldError('jam_tutup')}</small>}
+                  </label>
+                  <div className="settings-note settings-field-full"><b>Catatan</b><span>Informasi ini belum otomatis tampil di halaman publik. Integrasikan ke komponen publik saat kontrak ditetapkan.</span></div>
+                </div>
+                <div className="settings-form-actions">
+                  <span className="settings-hint">Perubahan berlaku untuk workspace ini.</span>
+                  <button type="submit" className="primary-button" disabled={savingSettings}><Save size={16} /> {savingSettings ? 'Menyimpan...' : 'Simpan informasi'}</button>
+                </div>
+              </form>
+            </>
+          )}
+
+          {activeTab === 'kebijakan' && (
+            <>
+              <div className="settings-panel-head">
+                <div><p className="eyebrow">Operasional</p><h2>Kebijakan sewa</h2><p>Atur batas minimum dan komponen biaya tambahan untuk transaksi baru.</p></div>
+                <span className="settings-badge"><SlidersHorizontal size={15} /> Rental</span>
+              </div>
+              <form className="settings-form" onSubmit={saveSettings} noValidate>
+                <div className="settings-form-grid">
+                  <label className={`form-field ${fieldError('durasi_minimum') ? 'has-error' : ''}`}>
+                    <span>Durasi minimum (hari)</span>
+                    <input type="number" min="1" max="365" step="1" inputMode="numeric" value={values.durasi_minimum} onChange={updateSetting('durasi_minimum')} />
+                    {fieldError('durasi_minimum') && <small className="form-error">{fieldError('durasi_minimum')}</small>}
+                  </label>
+                  <label className={`form-field ${fieldError('deposit') ? 'has-error' : ''}`}>
+                    <span>Deposit (Rp)</span>
+                    <input type="number" min="0" step="1000" inputMode="numeric" value={values.deposit} onChange={updateSetting('deposit')} />
+                    {fieldError('deposit') && <small className="form-error">{fieldError('deposit')}</small>}
+                  </label>
+                  <label className={`form-field ${fieldError('denda_per_hari') ? 'has-error' : ''}`}>
+                    <span>Denda keterlambatan / hari (Rp)</span>
+                    <input type="number" min="0" step="1000" inputMode="numeric" value={values.denda_per_hari} onChange={updateSetting('denda_per_hari')} />
+                    {fieldError('denda_per_hari') && <small className="form-error">{fieldError('denda_per_hari')}</small>}
+                  </label>
+                  <div className="settings-note settings-field-full"><b>Catatan</b><span>Nilai ini menjadi acuan untuk transaksi baru. Tarif dan total pada transaksi yang sudah tercatat tidak berubah.</span></div>
+                </div>
+                <div className="settings-form-actions">
+                  <span className="settings-hint">Pastikan kebijakan sudah disepakati sebelum disimpan.</span>
+                  <button type="submit" className="primary-button" disabled={savingSettings}><Save size={16} /> {savingSettings ? 'Menyimpan...' : 'Simpan kebijakan'}</button>
+                </div>
+              </form>
+            </>
+          )}
+
+          {activeTab === 'notifikasi' && (
+            <>
+              <div className="settings-panel-head">
+                <div><p className="eyebrow">Preferensi</p><h2>Notifikasi</h2><p>Pilih kanal pengingat yang relevan untuk operasional rental.</p></div>
+                <span className="settings-badge"><Bell size={15} /> Preferensi</span>
+              </div>
+              <form className="settings-form" onSubmit={saveSettings} noValidate>
+                <div className="toggle-list">
+                  <ToggleField id="notifikasi_email" title="Notifikasi email" description="Kirim ringkasan pengajuan dan perubahan status ke email operasional." checked={Boolean(values.notifikasi_email)} onChange={updateSetting('notifikasi_email')} />
+                  <ToggleField id="notifikasi_whatsapp" title="Notifikasi WhatsApp" description="Aktifkan pengingat melalui WhatsApp bila integrasi kanal tersedia." checked={Boolean(values.notifikasi_whatsapp)} onChange={updateSetting('notifikasi_whatsapp')} />
+                  <ToggleField id="pengingat_pengembalian" title="Pengingat pengembalian" description="Tampilkan pengingat untuk transaksi yang mendekati tanggal kembali." checked={Boolean(values.pengingat_pengembalian)} onChange={updateSetting('pengingat_pengembalian')} />
+                </div>
+                <div className="settings-note"><b>Catatan integrasi</b><span>Preferensi ini tersimpan di workspace. Pengiriman email atau WhatsApp aktual memerlukan konfigurasi layanan di backend.</span></div>
+                <div className="settings-form-actions">
+                  <span className="settings-hint">Preferensi dapat diubah kapan saja.</span>
+                  <button type="submit" className="primary-button" disabled={savingSettings}><Save size={16} /> {savingSettings ? 'Menyimpan...' : 'Simpan notifikasi'}</button>
+                </div>
+              </form>
+            </>
+          )}
+
+          {activeTab === 'keamanan' && (
+            <>
+              <div className="settings-panel-head">
+                <div><p className="eyebrow">Akun</p><h2>Keamanan</h2><p>Ganti password administrator secara berkala untuk menjaga akses workspace.</p></div>
+                <span className="settings-badge"><LockKeyhole size={15} /> Password</span>
+              </div>
+              <form className="settings-form" onSubmit={savePassword} noValidate>
+                <div className="settings-form-grid">
+                  <div className="settings-field-full">
+                    <SettingsPasswordField id="current_password" label="Password saat ini" value={passwords.current_password} onChange={updatePassword('current_password')} error={passwordErrors.current_password} autoComplete="current-password" />
+                  </div>
+                  <SettingsPasswordField id="password" label="Password baru" value={passwords.password} onChange={updatePassword('password')} error={passwordErrors.password} hint="Minimal 8 karakter." autoComplete="new-password" />
+                  <SettingsPasswordField id="password_confirmation" label="Konfirmasi password baru" value={passwords.password_confirmation} onChange={updatePassword('password_confirmation')} error={passwordErrors.password_confirmation} autoComplete="new-password" />
+                </div>
+                <div className="settings-note"><b>Tips keamanan</b><span>Gunakan kombinasi huruf, angka, dan simbol. Jangan bagikan password admin kepada pengguna lain.</span></div>
+                <div className="settings-form-actions">
+                  <span className="settings-hint">Sesi saat ini akan tetap aktif setelah password diperbarui.</span>
+                  <button type="submit" className="primary-button" disabled={savingPassword}><Save size={16} /> {savingPassword ? 'Menyimpan...' : 'Perbarui password'}</button>
+                </div>
+              </form>
+            </>
+          )}
+        </div>
+      </section>
+
+      {docsOpen && <ContractDocsModal onClose={() => setDocsOpen(false)} />}
     </>
   );
 }
@@ -307,15 +905,15 @@ function PasswordInput({ id, label, error, value, onChange, autoComplete }) {
   );
 }
 
-function AuthAside() {
+function AuthAside({ admin = false }) {
   return (
     <aside className="auth-aside">
       <div className="auth-aside-orbit orbit-one" />
       <div className="auth-aside-orbit orbit-two" />
       <div className="auth-aside-copy">
-        <p className="eyebrow">Koleksi yang siap dipakai</p>
-        <h2>Setiap cerita<br /><em>punya momennya.</em></h2>
-        <p>Pilih kamera yang tepat untuk menjadikan ide kamu sesuatu yang bisa dilihat, dirasakan, dan diingat.</p>
+        <p className="eyebrow">{admin ? 'Area administrasi' : 'Koleksi yang siap dipakai'}</p>
+        <h2>{admin ? <>Kelola operasional<br /><em>rental kamu.</em></> : <>Setiap cerita<br /><em>punya momennya.</em></>}</h2>
+        <p>{admin ? 'Masuk untuk memantau penyewaan, mengelola katalog kamera, dan meninjau performa bisnis.' : 'Pilih kamera yang tepat untuk menjadikan ide kamu sesuatu yang bisa dilihat, dirasakan, dan diingat.'}</p>
       </div>
       <div className="auth-camera-art"><Camera size={166} strokeWidth={.65} /><span>CURATED<br />CAMERA KIT<br /><b>EST. 2024</b></span></div>
     </aside>
@@ -324,6 +922,7 @@ function AuthAside() {
 
 function AuthPage({ mode, errors = {} }) {
   const isRegister = mode === 'register';
+  const isAdmin = mode === 'admin-login';
   const [values, setValues] = useState({ name: '', phone: '', address: '', password: '', password_confirmation: '', remember: false });
   const [clientErrors, setClientErrors] = useState({});
   const [processing, setProcessing] = useState(false);
@@ -335,7 +934,7 @@ function AuthPage({ mode, errors = {} }) {
     const phonePattern = /^(?:\+62|62|0)8[1-9][0-9]{7,11}$/;
     if (isRegister && !values.name.trim()) next.name = 'Nama lengkap wajib diisi.';
     if (!values.phone.trim()) next.phone = 'Nomor telepon wajib diisi.';
-    else if (!phonePattern.test(values.phone.replace(/[\s-]/g, ''))) next.phone = 'Masukkan nomor telepon yang valid.';
+    else if (!isAdmin && !phonePattern.test(values.phone.replace(/[\s-]/g, ''))) next.phone = 'Masukkan nomor telepon yang valid.';
     if (isRegister && !values.address.trim()) next.address = 'Alamat wajib diisi.';
     if (!values.password) next.password = 'Password wajib diisi.';
     else if (values.password.length < 8) next.password = 'Password minimal 8 karakter.';
@@ -348,7 +947,7 @@ function AuthPage({ mode, errors = {} }) {
     if (!validate()) return;
     setProcessing(true);
     const payload = { ...values, name: values.name.trim(), phone: values.phone.replace(/[\s-]/g, ''), address: values.address.trim() };
-    router.post(isRegister ? '/register' : '/login', payload, {
+    router.post(isRegister ? '/register' : isAdmin ? '/admin/login' : '/login', payload, {
       preserveScroll: true,
       onFinish: () => setProcessing(false),
       onError: (serverErrors) => setClientErrors(serverErrors),
@@ -356,15 +955,15 @@ function AuthPage({ mode, errors = {} }) {
   };
 
   return (
-    <div className="auth-page">
-      <AuthAside />
+    <div className={`auth-page ${isAdmin ? 'admin-auth' : ''}`}>
+      <AuthAside admin={isAdmin} />
       <main className="auth-main">
         <div className="auth-panel">
           <AuthBrand />
           <div className="auth-heading">
-            <p className="eyebrow">{isRegister ? 'Mulai perjalananmu' : 'Selamat datang kembali'}</p>
-            <h1>{isRegister ? 'Buat Akun KameraKita' : 'Selamat Datang Kembali'}</h1>
-            <p>{isRegister ? 'Daftar untuk menemukan dan menyewa kamera sesuai kebutuhanmu.' : 'Masuk ke akunmu untuk mengelola penyewaan kamera.'}</p>
+            <p className="eyebrow">{isRegister ? 'Mulai perjalananmu' : isAdmin ? 'Area administrasi' : 'Selamat datang kembali'}</p>
+            <h1>{isRegister ? 'Buat Akun KameraKita' : isAdmin ? 'Masuk Admin' : 'Selamat Datang Kembali'}</h1>
+            <p>{isRegister ? 'Daftar untuk menemukan dan menyewa kamera sesuai kebutuhanmu.' : isAdmin ? 'Masuk dengan akun administrator untuk mengelola workspace rental.' : 'Masuk ke akunmu untuk mengelola penyewaan kamera.'}</p>
           </div>
           <form className="auth-form" onSubmit={submit} noValidate>
             {isRegister && <AuthInput id="name" label="Nama Lengkap" icon={UserRound} value={values.name} onChange={update('name')} error={errorFor('name')} placeholder="Masukkan nama lengkap" autoComplete="name" />}
@@ -374,9 +973,18 @@ function AuthPage({ mode, errors = {} }) {
             {isRegister && <PasswordInput id="password_confirmation" label="Konfirmasi Password" value={values.password_confirmation} onChange={update('password_confirmation')} error={errorFor('password_confirmation')} autoComplete="new-password" />}
             {!isRegister && <label className="remember-field"><input type="checkbox" checked={values.remember} onChange={update('remember')} /> <span>Ingat saya</span></label>}
             {errors.message && <p className="auth-form-error">{errors.message}</p>}
-            <button className="primary-button auth-submit" type="submit" disabled={processing}>{processing ? 'Memproses...' : isRegister ? 'Buat Akun' : 'Masuk'} <ArrowUpRight size={16} /></button>
+            <button className="primary-button auth-submit" type="submit" disabled={processing}>{processing ? 'Memproses...' : isRegister ? 'Buat Akun' : isAdmin ? 'Masuk sebagai admin' : 'Masuk'} <ArrowUpRight size={16} /></button>
           </form>
-          <p className="auth-switch">{isRegister ? 'Sudah punya akun?' : 'Belum punya akun?'} <button type="button" onClick={() => router.get(isRegister ? '/login' : '/register')}>{isRegister ? 'Masuk' : 'Daftar sekarang'}</button></p>
+          {isRegister ? (
+            <p className="auth-switch">Sudah punya akun? <button type="button" onClick={() => router.get('/login')}>Masuk</button></p>
+          ) : isAdmin ? (
+            <p className="auth-switch">Bukan admin? <button type="button" onClick={() => router.get('/login')}>Masuk sebagai pelanggan</button></p>
+          ) : (
+            <p className="auth-switch">Belum punya akun? <button type="button" onClick={() => router.get('/register')}>Daftar sekarang</button></p>
+          )}
+          {!isRegister && !isAdmin && (
+            <p className="auth-admin-link">Administrator? <button type="button" onClick={() => router.get('/admin/login')}>Masuk admin</button></p>
+          )}
           <button type="button" className="auth-back" onClick={() => router.get('/')}><ArrowUpRight size={15} /> Kembali ke halaman utama</button>
         </div>
       </main>
@@ -401,6 +1009,7 @@ function App(props) {
     if (route === '/admin/penyewaan') return 'rentals';
     if (route === '/admin/pelanggan') return 'customers';
     if (route === '/admin/inventaris') return 'inventory';
+    if (route === '/admin/pengaturan') return 'settings';
     return 'overview';
   };
   const [active, setActive] = useState(() => getRoute() === '/' ? 'public-home' : getPage(getRole()));
@@ -418,7 +1027,7 @@ function App(props) {
       'customer-catalog': '/pelanggan/katalog',
       'customer-rentals': '/pelanggan/sewa',
       'customer-profile': '/pelanggan/profil',
-      settings: role === 'customer' ? '/pelanggan/profil' : '/admin',
+      settings: '/admin/pengaturan',
       help: role === 'customer' ? '/pelanggan' : '/admin',
     };
     return routes[page] || (role === 'customer' ? '/pelanggan' : '/admin');
@@ -453,14 +1062,15 @@ function App(props) {
   if (role === 'customer' && active === 'customer-catalog') content = <CustomerCatalog onSelectCamera={setSelectedCamera} />;
   if (role === 'customer' && active === 'customer-rentals') content = <Placeholder title="Sewa saya" />;
   if (role === 'customer' && active === 'customer-profile') content = <Placeholder title="Profil saya" />;
-  if (role === 'admin' && active === 'catalog') content = <Catalog onSelectCamera={setSelectedCamera} />;
+  if (role === 'admin' && active === 'catalog') content = <Catalog onSelectCamera={setSelectedCamera} cameras={props.cameras} canManage />;
   if (active === 'rentals') content = <Rentals />;
-  if (['customers', 'inventory', 'settings', 'help'].includes(active)) content = <Placeholder title={active === 'customers' ? 'Pelanggan' : active === 'inventory' ? 'Inventaris' : active === 'help' ? 'Pusat bantuan' : 'Pengaturan'} />;
+  if (role === 'admin' && active === 'settings') content = <Settings user={currentUser} settings={props.settings} flash={props.flash} />;
+  if (['customers', 'inventory', 'help'].includes(active)) content = <Placeholder title={active === 'customers' ? 'Pelanggan' : active === 'inventory' ? 'Inventaris' : 'Pusat bantuan'} />;
   return (
     <div className="app-shell">
-      {active !== 'public-home' && <Sidebar user={currentUser} active={active} onChange={navigate} open={sidebarOpen} onClose={() => setSidebarOpen(false)} role={role} onRoleChange={() => navigate(role === 'admin' ? 'customer-home' : 'overview')} />}
+      {active !== 'public-home' && <Sidebar user={currentUser} active={active} onChange={navigate} open={sidebarOpen} onClose={() => setSidebarOpen(false)} role={role} />}
       {sidebarOpen && <button className="sidebar-scrim" aria-label="Tutup navigasi" onClick={() => setSidebarOpen(false)} />}
-      <main className={active === 'public-home' ? 'public-main' : 'main-content'}>{active !== 'public-home' && <Topbar role={role} onMenu={() => setSidebarOpen(true)} />}<div className={active === 'public-home' ? '' : 'page-content'}>{content}</div>{active !== 'public-home' && <footer>© 2024 Sewa Kamera <span>•</span> Data di halaman ini adalah demonstrasi frontend.</footer>}</main>
+      <main className={active === 'public-home' ? 'public-main' : 'main-content'}>{active !== 'public-home' && <Topbar role={role} active={active} onMenu={() => setSidebarOpen(true)} />}<div className={active === 'public-home' ? '' : 'page-content'}>{content}</div>{active !== 'public-home' && <footer className="app-footer">© 2026 Kamera Kita <span>•</span> Workspace operasional</footer>}</main>
       {selectedCamera && <div className="modal-scrim" onClick={() => setSelectedCamera(null)}><div className="camera-modal" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setSelectedCamera(null)}><X size={18} /></button><div className={`modal-visual ${selectedCamera.tone}`}><Camera size={92} strokeWidth={1.05} /><span>PHOTO / DEMO</span></div><div className="modal-copy"><p className="eyebrow">{selectedCamera.type}</p><h2>{selectedCamera.name}</h2><p className="heading-subtitle">Kamera ini siap dipesan untuk kebutuhan produksi dan konten kamu.</p><div className="modal-rate"><b>{formatCurrency(selectedCamera.rate)}</b><span>/ hari</span></div><button className="primary-button full-width" onClick={() => setSelectedCamera(null)}><CalendarDays size={17} /> Pilih tanggal sewa</button></div></div></div>}
     </div>
   );

@@ -57,9 +57,32 @@ class AuthController extends Controller
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
 
-        return redirect()->intended(
-            $request->user()->role === 'admin' ? route('admin.dashboard') : route('customer.dashboard')
+        return redirect()->route(
+            $request->user()->role === 'admin' ? 'admin.dashboard' : 'customer.dashboard'
         );
+    }
+
+    public function adminLogin(Request $request)
+    {
+        $request->merge([
+            'phone' => preg_replace('/[\s-]/', '', (string) $request->input('phone')),
+        ]);
+
+        $data = $request->validate([
+            'phone' => ['required', 'string', 'max:30'],
+            'password' => ['required', 'string'],
+        ]);
+
+        $user = User::query()->where('no_telepon', $data['phone'])->first();
+
+        if (! $user || $user->role !== 'admin' || ! Hash::check($data['password'], $user->password_hash)) {
+            return back()->withErrors(['phone' => 'Nomor telepon atau password admin tidak sesuai.']);
+        }
+
+        Auth::login($user, $request->boolean('remember'));
+        $request->session()->regenerate();
+
+        return redirect()->route('admin.dashboard');
     }
 
     public function logout(Request $request)

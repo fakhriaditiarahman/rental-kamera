@@ -49,16 +49,14 @@ function IconButton({ label, children, onClick }) {
 function Logo() {
   return (
     <div className="brand">
-      <span className="brand-mark"><Camera size={18} strokeWidth={2.4} /></span>
-      <span>
-        <strong>Sewa</strong>
-        <em>Kamera</em>
+      <span className="brand-mark">
+        <img src="/image/logo.webp" alt="Kamera Kita" style={{ width: 80, height: 80, objectFit: 'contain' }} />
       </span>
     </div>
   );
 }
 
-function Sidebar({ active, onChange, open, onClose, role, onRoleChange }) {
+function Sidebar({ active, onChange, open, onClose, role }) {
   const nav = role === 'customer'
     ? [
       { id: 'customer-home', label: 'Dashboard', icon: LayoutDashboard },
@@ -79,12 +77,6 @@ function Sidebar({ active, onChange, open, onClose, role, onRoleChange }) {
         <Logo />
         <IconButton label="Tutup navigasi" onClick={onClose}><X size={18} /></IconButton>
       </div>
-      <button className="workspace-switcher" onClick={() => onRoleChange(role === 'admin' ? 'customer' : 'admin')}>
-        <span className="workspace-avatar">SK</span>
-        <span><b>{role === 'customer' ? 'Akun pelanggan' : 'Studio Kamera'}</b><small>{role === 'customer' ? 'Ruang sewa pribadi' : 'Workspace admin'}</small></span>
-        <ChevronDown size={15} />
-        <span className="role-switch">Ganti</span>
-      </button>
       <nav className="nav-list" aria-label="Navigasi utama">
         <p className="nav-label">Workspace</p>
         {nav.map(({ id, label, icon: NavIcon, count }) => (
@@ -160,8 +152,31 @@ function PublicHome({ onNavigate, onSelectCamera }) {
       <section className="public-search-strip"><div><p className="eyebrow">Mulai dari kebutuhanmu</p><h2>Kapan kamu butuh kamera?</h2></div><div className="public-search-fields"><label><CalendarDays size={17} /><span><small>Tanggal mulai</small><b>24 September 2024</b></span></label><span className="search-divider" /><label><CalendarDays size={17} /><span><small>Tanggal kembali</small><b>27 September 2024</b></span></label><button className="primary-button" onClick={() => onNavigate('customer-catalog')}><Search size={17} /> Cek ketersediaan</button></div></section>
       <section className="public-section" id="koleksi"><div className="public-section-heading"><div><p className="eyebrow">Pilihan kami</p><h2>Kamera yang siap<br /><em>menemani cerita.</em></h2></div><button className="text-button" onClick={() => onNavigate('customer-catalog')}>Lihat semua kamera <ArrowUpRight size={16} /></button></div><div className="featured-grid">{cameras.slice(0, 3).map((camera, index) => <article className={`featured-card featured-${index}`} key={camera.id} onClick={() => onSelectCamera(camera)}><div className={`featured-image ${camera.tone}`}><span>{camera.tag}</span><Camera size={100} strokeWidth={.85} /></div><div className="featured-card-copy"><div><h3>{camera.name}</h3><p>{camera.type}</p></div><b>{formatCurrency(camera.rate)}<small>/ hari</small></b></div></article>)}</div></section>
       <section className="public-process" id="cara-sewa"><div className="public-process-intro"><p className="eyebrow">Semudah itu</p><h2>Dari ide menjadi<br /><em>kenyataan.</em></h2><p>Tanpa proses yang rumit. Pilih gear, tentukan tanggal, dan biarkan kami menyiapkan sisanya.</p><button className="secondary-button" onClick={() => onNavigate('customer-catalog')}>Mulai eksplorasi <ArrowUpRight size={15} /></button></div><div className="process-steps"><div><span>01</span><CalendarDays size={21} /><h3>Pilih tanggal</h3><p>Tentukan kapan kamu membutuhkan kamera dan berapa lama.</p></div><div><span>02</span><Camera size={21} /><h3>Pilih kamera</h3><p>Temukan gear yang sesuai dengan kebutuhan ceritamu.</p></div><div><span>03</span><Check size={21} /><h3>Siap berkarya</h3><p>Ambil kamera, buat sesuatu yang berarti, dan kembalikan dengan mudah.</p></div></div></section>
-      <section className="public-quote" id="tentang"><span className="quote-mark">“</span><blockquote>Alat yang tepat tidak membuat cerita menjadi lebih baik. Tapi ia membantu cerita itu sampai kepada orang yang tepat.</blockquote><span className="quote-caption">— Prinsip kami di Sewa Kamera</span></section>
-      <footer className="public-footer"><Logo /><span>© 2024 Sewa Kamera. Dibuat untuk para pembuat cerita.</span><div><button onClick={() => onNavigate('customer-home')}>Masuk pelanggan</button><button onClick={() => onNavigate('admin')}>Admin</button></div></footer>
+      <section className="public-quote" id="tentang"><span className="quote-mark">“</span><blockquote>Alat yang tepat tidak membuat cerita menjadi lebih baik. Tapi ia membantu cerita itu sampai kepada orang yang tepat.</blockquote><span className="quote-caption">— Prinsip kami di Kamera Kita</span></section>
+      <footer className="public-footer">
+        <div className="public-footer-grid">
+          <div className="public-footer-brand">
+            <Logo />
+            <p>Gear pilihan untuk produksi film, konten kreatif, dan momen berharga. Proses sederhana, transparan, dan siap bantu mewujudkan ceritamu.</p>
+          </div>
+          <div className="public-footer-col">
+            <h4>Eksplorasi</h4>
+            <button onClick={() => document.getElementById('koleksi')?.scrollIntoView({ behavior: 'smooth' })}>Koleksi</button>
+            <button onClick={() => document.getElementById('cara-sewa')?.scrollIntoView({ behavior: 'smooth' })}>Cara sewa</button>
+            <button onClick={() => document.getElementById('tentang')?.scrollIntoView({ behavior: 'smooth' })}>Tentang kami</button>
+          </div>
+          <div className="public-footer-col">
+            <h4>Akun</h4>
+            <button onClick={() => onNavigate('customer-home')}>Masuk pelanggan</button>
+            <button onClick={() => onNavigate('customer-catalog')}>Jelajahi katalog</button>
+            <button onClick={() => onNavigate('admin')}>Halaman admin</button>
+          </div>
+        </div>
+        <div className="public-footer-bar">
+          <span>© 2026 Kamera Kita</span>
+          <span>Dibuat untuk para pembuat cerita</span>
+        </div>
+      </footer>
     </div>
   );
 }
@@ -335,9 +350,9 @@ function App() {
   if (['customers', 'inventory', 'settings', 'help'].includes(active)) content = <Placeholder title={active === 'customers' ? 'Pelanggan' : active === 'inventory' ? 'Inventaris' : active === 'help' ? 'Pusat bantuan' : 'Pengaturan'} />;
   return (
     <div className="app-shell">
-      {active !== 'public-home' && <Sidebar active={active} onChange={navigate} open={sidebarOpen} onClose={() => setSidebarOpen(false)} role={role} onRoleChange={() => navigate(role === 'admin' ? 'customer-home' : 'overview')} />}
+      {active !== 'public-home' && <Sidebar active={active} onChange={navigate} open={sidebarOpen} onClose={() => setSidebarOpen(false)} role={role} />}
       {sidebarOpen && <button className="sidebar-scrim" aria-label="Tutup navigasi" onClick={() => setSidebarOpen(false)} />}
-      <main className={active === 'public-home' ? 'public-main' : 'main-content'}>{active !== 'public-home' && <Topbar role={role} onMenu={() => setSidebarOpen(true)} />}<div className={active === 'public-home' ? '' : 'page-content'}>{content}</div>{active !== 'public-home' && <footer>© 2024 Sewa Kamera <span>•</span> Data di halaman ini adalah demonstrasi frontend.</footer>}</main>
+      <main className={active === 'public-home' ? 'public-main' : 'main-content'}>{active !== 'public-home' && <Topbar role={role} onMenu={() => setSidebarOpen(true)} />}<div className={active === 'public-home' ? '' : 'page-content'}>{content}</div>{active !== 'public-home' && <footer className="app-footer">© 2026 Kamera Kita <span>•</span> Workspace operasional</footer>}</main>
       {selectedCamera && <div className="modal-scrim" onClick={() => setSelectedCamera(null)}><div className="camera-modal" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setSelectedCamera(null)}><X size={18} /></button><div className={`modal-visual ${selectedCamera.tone}`}><Camera size={92} strokeWidth={1.05} /><span>PHOTO / DEMO</span></div><div className="modal-copy"><p className="eyebrow">{selectedCamera.type}</p><h2>{selectedCamera.name}</h2><p className="heading-subtitle">Kamera ini siap dipesan untuk kebutuhan produksi dan konten kamu.</p><div className="modal-rate"><b>{formatCurrency(selectedCamera.rate)}</b><span>/ hari</span></div><button className="primary-button full-width" onClick={() => setSelectedCamera(null)}><CalendarDays size={17} /> Pilih tanggal sewa</button></div></div></div>}
     </div>
   );
