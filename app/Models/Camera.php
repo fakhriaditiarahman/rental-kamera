@@ -34,6 +34,47 @@ class Camera extends Model
         ]);
     }
 
+    /**
+     * Cameras with the remaining stock for a rental period.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public static function availabilityList(string $startDate, string $endDate): Collection
+    {
+        $bookings = Rental::query()
+            ->whereIn('status_sewa', Rental::ACTIVE_STATUSES)
+            ->whereDate('tanggal_sewa', '<=', $endDate)
+            ->whereDate('tanggal_kembali', '>=', $startDate)
+            ->selectRaw('id_produk, COUNT(*) as total')
+            ->groupBy('id_produk')
+            ->pluck('total', 'id_produk');
+
+        return static::query()
+            ->where('status_ketersediaan', '!=', 'Tidak tersedia')
+            ->orderBy('nama_produk')
+            ->get()
+            ->values()
+            ->map(function ($camera, $index) use ($bookings) {
+                $booked = (int) ($bookings[$camera->id_produk] ?? 0);
+                $remaining = max(0, (int) $camera->stok - $booked);
+                $available = $remaining > 0;
+
+                return [
+                    'id' => $camera->id_produk,
+                    'name' => $camera->nama_produk,
+                    'type' => $camera->jenis_kamera,
+                    'rate' => (float) $camera->harga_sewa,
+                    'stock' => (int) $camera->stok,
+                    'status' => $available ? ($remaining === 1 ? 'Terbatas' : 'Tersedia') : 'Tidak tersedia',
+                    'tone' => ['sand', 'clay', 'sage', 'ink'][$index % 4],
+                    'tag' => 'Koleksi',
+                    'available' => $available,
+                    'availableStock' => $remaining,
+                    'bookedStock' => $booked,
+                ];
+            });
+    }
+
     protected function casts(): array
     {
         return [

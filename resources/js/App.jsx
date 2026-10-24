@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { router } from '@inertiajs/react';
 import {
   AlertCircle,
@@ -30,6 +30,7 @@ import {
   Eye,
   EyeOff,
   Phone,
+  RefreshCw,
   UserRound,
 } from 'lucide-react';
 
@@ -111,7 +112,32 @@ function Logo() {
   );
 }
 
-function Sidebar({ active, onChange, open, onClose, role, user, rentalCount = 0 }) {
+function Sidebar({ active, onChange, open, onClose, role, user, rentalCount = 0, onLogout }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+  const displayName = user?.name || (role === 'customer' ? 'Pelanggan' : 'Ardi Rahman');
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const handlePointer = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) setMenuOpen(false);
+    };
+    const handleKey = (event) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handlePointer);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handlePointer);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [menuOpen]);
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [active]);
+  const menuLogout = () => {
+    setMenuOpen(false);
+    onLogout();
+  };
   const nav = role === 'customer'
     ? [
       { id: 'customer-home', label: 'Dashboard', icon: LayoutDashboard },
@@ -146,8 +172,18 @@ function Sidebar({ active, onChange, open, onClose, role, user, rentalCount = 0 
         <button className={`nav-item ${active === 'help' ? 'active' : ''}`} onClick={() => onChange(role === 'customer' ? 'customer-home' : 'help')}><CircleHelp size={18} /><span>Pusat bantuan</span></button>
       </nav>
       <div className="sidebar-foot">
-        <div className="profile-row"><span className="profile-avatar">{getInitials(user?.name || (role === 'customer' ? 'Pelanggan' : 'Ardi Rahman'))}</span><span><b>{user?.name || (role === 'customer' ? 'Pelanggan' : 'Ardi Rahman')}</b><small>{role === 'customer' ? 'Pelanggan' : 'Administrator'}</small></span><ChevronDown size={15} /></div>
-        <button className="logout-button" onClick={() => router.post('/logout')}><LogOut size={16} /> Keluar</button>
+        <div className="profile-menu" ref={menuRef}>
+          <button type="button" className="profile-row" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((value) => !value)}>
+            <span className="profile-avatar">{getInitials(displayName)}</span>
+            <span><b>{displayName}</b><small>{role === 'customer' ? 'Pelanggan' : 'Administrator'}</small></span>
+            <ChevronDown size={15} />
+          </button>
+          {menuOpen && (
+            <div className="profile-menu-panel" role="menu" aria-label="Menu akun">
+              <button type="button" className="profile-menu-item danger" role="menuitem" onClick={menuLogout}><LogOut size={15} /> Keluar</button>
+            </div>
+          )}
+        </div>
       </div>
     </aside>
   );
@@ -155,6 +191,35 @@ function Sidebar({ active, onChange, open, onClose, role, user, rentalCount = 0 
 
 function getInitials(name) {
   return name.split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+}
+
+function LogoutConfirmModal({ role, processing, onClose, onConfirm }) {
+  useEffect(() => {
+    const handleKey = (event) => {
+      if (event.key === 'Escape' && !processing) onClose();
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [processing, onClose]);
+
+  return (
+    <div className="modal-scrim" onClick={processing ? undefined : onClose}>
+      <div className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="logout-confirm-title" aria-describedby="logout-confirm-desc" onClick={(event) => event.stopPropagation()}>
+        <span className="confirm-icon"><LogOut size={22} /></span>
+        <p className="eyebrow">Konfirmasi keluar</p>
+        <h2 id="logout-confirm-title">Keluar dari akun?</h2>
+        <p id="logout-confirm-desc">
+          {role === 'customer'
+            ? 'Kamu akan keluar dari akun pelanggan. Pengajuan sewa yang sudah dikirim tetap tersimpan dan bisa kamu pantau setelah masuk kembali.'
+            : 'Kamu akan keluar dari workspace admin. Pastikan semua perubahan sudah tersimpan sebelum meninggalkan halaman ini.'}
+        </p>
+        <div className="confirm-dialog-actions">
+          <button type="button" className="secondary-button" onClick={onClose} disabled={processing} autoFocus>Tetap di sini</button>
+          <button type="button" className="primary-button danger-button" onClick={onConfirm} disabled={processing}>{processing ? 'Keluar...' : 'Ya, keluar'}</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function CustomerHome({ onSelectCamera, onNavigate, user, rentals = [], cameras: cameraSource = cameras }) {
@@ -192,8 +257,8 @@ function CustomerHome({ onSelectCamera, onNavigate, user, rentals = [], cameras:
   );
 }
 
-function CustomerCatalog({ onSelectCamera, cameras: cameraSource = cameras }) {
-  return <Catalog onSelectCamera={onSelectCamera} cameras={cameraSource} />;
+function CustomerCatalog({ onSelectCamera, cameras: cameraSource = cameras, availability, onClearAvailability }) {
+  return <Catalog onSelectCamera={onSelectCamera} cameras={availability ? availability.cameras : cameraSource} availability={availability} onClearAvailability={onClearAvailability} />;
 }
 
 const ACTIVE_RENTAL_STATUSES = ['Menunggu persetujuan', 'Disetujui', 'Sedang disewa'];
@@ -429,7 +494,50 @@ function CustomerRentals({ rentals = [], summary = {}, onNavigate }) {
   );
 }
 
-function PublicHome({ onNavigate, onSelectCamera }) {
+function PublicHome({ onNavigate, onSelectCamera, onCheckAvailability, cameras: cameraSource = cameras }) {
+  const today = toDateInputValue();
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 3);
+    return toDateInputValue(date);
+  });
+  const [searchError, setSearchError] = useState('');
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+
+  const updateStartDate = (event) => {
+    const value = event.target.value;
+    setStartDate(value);
+    setSearchError('');
+    if (endDate && value && endDate < value) setEndDate(value);
+  };
+
+  const updateEndDate = (event) => {
+    setEndDate(event.target.value);
+    setSearchError('');
+  };
+
+  const submitAvailability = (event) => {
+    event.preventDefault();
+
+    if (!startDate) {
+      setSearchError('Pilih tanggal mulai sewa terlebih dahulu.');
+      return;
+    }
+    if (!endDate) {
+      setSearchError('Pilih tanggal kembali terlebih dahulu.');
+      return;
+    }
+    if (endDate < startDate) {
+      setSearchError('Tanggal kembali tidak boleh sebelum tanggal mulai.');
+      return;
+    }
+
+    setCheckingAvailability(true);
+    setSearchError('');
+    onCheckAvailability({ startDate, endDate });
+  };
+
   return (
     <div className="public-home">
       <section className="public-hero">
@@ -441,8 +549,31 @@ function PublicHome({ onNavigate, onSelectCamera }) {
         <div className="public-hero-content"><div><p className="eyebrow">Gear untuk cerita yang berarti</p><h1>Buat momen.<br /><em>Kami siapkan</em> kameranya.</h1><p className="public-hero-copy">Sewa kamera pilihan untuk produksi film, konten, dan momen penting kamu—dengan proses yang sederhana dan transparan.</p><button className="primary-button large" onClick={() => onNavigate('customer-catalog')}>Jelajahi koleksi <ArrowUpRight size={17} /></button></div><div className="hero-still-life"><div className="hero-orbit orbit-one" /><div className="hero-orbit orbit-two" /><Camera size={190} strokeWidth={.65} /><span className="hero-still-label">CURATED<br />CAMERA KIT<br /><b>EST. 2024</b></span></div></div>
         <div className="public-hero-bottom"><span>Dipercaya untuk produksi yang tidak bisa diulang</span><span className="scroll-note">SCROLL TO EXPLORE <ArrowUpRight size={14} /></span></div>
       </section>
-      <section className="public-search-strip"><div><p className="eyebrow">Mulai dari kebutuhanmu</p><h2>Kapan kamu butuh kamera?</h2></div><div className="public-search-fields"><label><CalendarDays size={17} /><span><small>Tanggal mulai</small><b>24 September 2024</b></span></label><span className="search-divider" /><label><CalendarDays size={17} /><span><small>Tanggal kembali</small><b>27 September 2024</b></span></label><button className="primary-button" onClick={() => onNavigate('customer-catalog')}><Search size={17} /> Cek ketersediaan</button></div></section>
-      <section className="public-section" id="koleksi"><div className="public-section-heading"><div><p className="eyebrow">Pilihan kami</p><h2>Kamera yang siap<br /><em>menemani cerita.</em></h2></div><button className="text-button" onClick={() => onNavigate('customer-catalog')}>Lihat semua kamera <ArrowUpRight size={16} /></button></div><div className="featured-grid">{cameras.slice(0, 3).map((camera, index) => <article className={`featured-card featured-${index}`} key={camera.id} onClick={() => onSelectCamera(camera)}><div className={`featured-image ${camera.tone}`}><span>{camera.tag}</span><Camera size={100} strokeWidth={.85} /></div><div className="featured-card-copy"><div><h3>{camera.name}</h3><p>{camera.type}</p></div><b>{formatCurrency(camera.rate)}<small>/ hari</small></b></div></article>)}</div></section>
+      <section className="public-search-strip">
+        <div><p className="eyebrow">Mulai dari kebutuhanmu</p><h2>Kapan kamu butuh kamera?</h2></div>
+        <div className="public-search-side">
+          <form className="public-search-fields" onSubmit={submitAvailability} noValidate>
+            <label>
+              <CalendarDays size={17} />
+              <span>
+                <small>Tanggal mulai</small>
+                <input type="date" min={today} value={startDate} onChange={updateStartDate} aria-label="Tanggal mulai" />
+              </span>
+            </label>
+            <span className="search-divider" />
+            <label>
+              <CalendarDays size={17} />
+              <span>
+                <small>Tanggal kembali</small>
+                <input type="date" min={startDate || today} value={endDate} onChange={updateEndDate} aria-label="Tanggal kembali" />
+              </span>
+            </label>
+            <button type="submit" className="primary-button" disabled={checkingAvailability}>{checkingAvailability ? 'Memeriksa...' : <><Search size={17} /> Cek ketersediaan</>}</button>
+          </form>
+          {searchError && <p className="public-search-error" role="alert">{searchError}</p>}
+        </div>
+      </section>
+      <section className="public-section" id="koleksi"><div className="public-section-heading"><div><p className="eyebrow">Pilihan kami</p><h2>Kamera yang siap<br /><em>menemani cerita.</em></h2></div><button className="text-button" onClick={() => onNavigate('customer-catalog')}>Lihat semua kamera <ArrowUpRight size={16} /></button></div><div className="featured-grid">{cameraSource.slice(0, 3).map((camera, index) => <article className={`featured-card featured-${index}`} key={camera.id} onClick={() => onSelectCamera(camera)}><div className={`featured-image ${camera.tone}`}><span>{camera.tag}</span><Camera size={100} strokeWidth={.85} /></div><div className="featured-card-copy"><div><h3>{camera.name}</h3><p>{camera.type}</p></div><b>{formatCurrency(camera.rate)}<small>/ hari</small></b></div></article>)}</div></section>
       <section className="public-process" id="cara-sewa"><div className="public-process-intro"><p className="eyebrow">Semudah itu</p><h2>Dari ide menjadi<br /><em>kenyataan.</em></h2><p>Tanpa proses yang rumit. Pilih gear, tentukan tanggal, dan biarkan kami menyiapkan sisanya.</p><button className="secondary-button" onClick={() => onNavigate('customer-catalog')}>Mulai eksplorasi <ArrowUpRight size={15} /></button></div><div className="process-steps"><div><span>01</span><CalendarDays size={21} /><h3>Pilih tanggal</h3><p>Tentukan kapan kamu membutuhkan kamera dan berapa lama.</p></div><div><span>02</span><Camera size={21} /><h3>Pilih kamera</h3><p>Temukan gear yang sesuai dengan kebutuhan ceritamu.</p></div><div><span>03</span><Check size={21} /><h3>Siap berkarya</h3><p>Ambil kamera, buat sesuatu yang berarti, dan kembalikan dengan mudah.</p></div></div></section>
       <section className="public-quote" id="tentang"><span className="quote-mark">“</span><blockquote>Alat yang tepat tidak membuat cerita menjadi lebih baik. Tapi ia membantu cerita itu sampai kepada orang yang tepat.</blockquote><span className="quote-caption">— Prinsip kami di Kamera Kita</span></section>
       <footer className="public-footer">
@@ -473,7 +604,92 @@ function PublicHome({ onNavigate, onSelectCamera }) {
   );
 }
 
-function Topbar({ onMenu, role, active, user }) {
+function AvailabilityResults({ availability, onSelectCamera, onNavigate }) {
+  const [query, setQuery] = useState('');
+  const cameras = availability?.cameras ?? [];
+  const availableCameras = cameras.filter((camera) => camera.available !== false);
+  const filtered = availableCameras.filter((camera) => camera.name.toLowerCase().includes(query.toLowerCase()));
+  const period = availability ? `${formatDateInput(availability.startDate)} — ${formatDateInput(availability.endDate)}` : '';
+  const duration = availability?.duration ?? 0;
+
+  return (
+    <div className="availability-page">
+      <header className="availability-topbar">
+        <Logo />
+        <button className="text-button" onClick={() => onNavigate('public-home')}>Kembali ke beranda <ArrowUpRight size={15} /></button>
+      </header>
+
+      <section className="availability-hero">
+        <p className="eyebrow">Hasil pengecekan ketersediaan</p>
+        <h1>Kamera yang siap<br /><em>untuk tanggalmu.</em></h1>
+        <p>{availableCameras.length > 0 ? `${availableCameras.length} kamera tidak sedang dibooking orang lain pada periode ini.` : 'Belum ada kamera yang bisa disewa pada periode ini.'}</p>
+        <div className="availability-hero-meta">
+          <span><CalendarDays size={15} /> {period}</span>
+          <span><Clock3 size={15} /> {duration} hari sewa</span>
+        </div>
+      </section>
+
+      <section className="availability-results-head">
+        <div><h2>Daftar kamera tersedia</h2><p>Hanya kamera dengan sisa unit pada periode ini yang ditampilkan.</p></div>
+        <div className="availability-results-actions">
+          <label className="search-field"><Search size={17} /><input placeholder="Cari nama kamera..." value={query} onChange={(event) => setQuery(event.target.value)} /></label>
+          <button className="secondary-button" onClick={() => onNavigate('public-home')}><CalendarDays size={16} /> Ubah tanggal</button>
+        </div>
+      </section>
+
+      {filtered.length > 0 ? (
+        <section className="camera-grid availability-grid">
+          {filtered.map((camera) => (
+            <article className="camera-card" key={camera.id} onClick={() => onSelectCamera(camera)}>
+              <div className={`camera-image ${camera.tone}`}>
+                <span className="camera-tag">Sisa {camera.availableStock} unit</span>
+                <Camera size={76} strokeWidth={1.1} />
+                <span className="camera-image-label">SIAP DISEWA</span>
+              </div>
+              <div className="camera-card-body">
+                <div className="camera-title"><div><h3>{camera.name}</h3><p>{camera.type}</p></div></div>
+                <div className="camera-card-foot">
+                  <span><b>{formatCurrency(camera.rate)}</b> <small>/ hari</small></span>
+                  <StatusBadge status={camera.status} />
+                </div>
+              </div>
+            </article>
+          ))}
+        </section>
+      ) : (
+        <div className="empty-state availability-empty">
+          <CalendarDays size={27} />
+          <h2>{availableCameras.length > 0 ? 'Kamera tidak ditemukan' : 'Belum ada kamera tersedia'}</h2>
+          <p>{availableCameras.length > 0 ? 'Coba gunakan kata kunci lain.' : 'Semua kamera sudah dibooking pada periode ini. Coba pilih tanggal lain.'}</p>
+          <button className="primary-button" onClick={() => onNavigate('public-home')}>Pilih tanggal lain</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Topbar({ onMenu, role, active, user, onLogout }) {
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountRef = useRef(null);
+  const displayName = user?.name || (role === 'customer' ? 'Pelanggan' : 'Admin');
+  useEffect(() => {
+    if (!accountOpen) return undefined;
+    const handlePointer = (event) => {
+      if (accountRef.current && !accountRef.current.contains(event.target)) setAccountOpen(false);
+    };
+    const handleKey = (event) => {
+      if (event.key === 'Escape') setAccountOpen(false);
+    };
+    document.addEventListener('mousedown', handlePointer);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handlePointer);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [accountOpen]);
+  useEffect(() => {
+    setAccountOpen(false);
+  }, [active]);
   const labels = {
     overview: 'Overview',
     catalog: 'Katalog kamera',
@@ -494,7 +710,14 @@ function Topbar({ onMenu, role, active, user }) {
       <div className="topbar-actions">
         <button className="date-chip"><CalendarDays size={16} /> {formatDateRange()} <ChevronDown size={14} /></button>
         <IconButton label="Notifikasi"><Bell size={19} /></IconButton>
-        <span className="topbar-avatar">{getInitials(user?.name || (role === 'customer' ? 'Pelanggan' : 'Admin'))}</span>
+        <div className="topbar-account" ref={accountRef}>
+          <button type="button" className="topbar-avatar" aria-haspopup="menu" aria-expanded={accountOpen} aria-label={`Menu akun ${displayName}`} onClick={() => setAccountOpen((value) => !value)}>{getInitials(displayName)}</button>
+          {accountOpen && (
+            <div className="topbar-account-menu" role="menu" aria-label="Menu akun">
+              <button type="button" className="topbar-account-item" role="menuitem" onClick={() => { setAccountOpen(false); onLogout(); }}><LogOut size={15} /> Keluar</button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );
@@ -514,6 +737,112 @@ function StatCard({ label, value, detail, trend, icon: StatIcon, tone }) {
 function StatusBadge({ status }) {
   const statusClass = status.toLowerCase().replaceAll(' ', '-');
   return <span className={`status-badge ${statusClass}`}><i />{status}</span>;
+}
+
+function InsightBanner() {
+  const [insight, setInsight] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+
+  const load = async ({ refresh = false } = {}) => {
+    if (refresh) setRefreshing(true); else setLoading(true);
+    setError(false);
+    try {
+      const response = await fetch(`/admin/insight${refresh ? '?refresh=1' : ''}`, {
+        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin',
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      setInsight(data);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const fallbackHeadline = loading ? 'Menyusun insight…' : 'Insight minggu ini';
+  const fallbackSummary = loading
+    ? 'Menganalisis data rental minggu ini…'
+    : 'Insight belum bisa dimuat. Periksa koneksi lalu coba lagi.';
+
+  return (
+    <>
+      <section className="insight-banner">
+        <span className="insight-icon"><Sparkles size={19} /></span>
+        <span>
+          <b>{insight?.headline || fallbackHeadline}</b>
+          <small className={loading ? 'is-loading' : ''}>{insight?.summary || fallbackSummary}</small>
+        </span>
+        <button type="button" className="text-button" onClick={() => (error && !insight ? load() : setDetailOpen(true))} disabled={loading && !insight}>
+          {error && !insight ? 'Coba lagi' : 'Lihat detail'} <ArrowUpRight size={15} />
+        </button>
+      </section>
+      {detailOpen && insight && (
+        <InsightDetailModal
+          insight={insight}
+          refreshing={refreshing}
+          onRefresh={() => load({ refresh: true })}
+          onClose={() => setDetailOpen(false)}
+        />
+      )}
+    </>
+  );
+}
+
+function InsightDetailModal({ insight, refreshing, onRefresh, onClose }) {
+  const metrics = insight.metrics || {};
+  const generatedAt = insight.generated_at
+    ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(insight.generated_at))
+    : '';
+  const cards = [
+    { label: 'Penyewaan aktif', value: metrics.ongoing_rentals ?? 0 },
+    { label: 'Menunggu persetujuan', value: metrics.pending_rentals ?? 0 },
+    { label: 'Pendapatan 7 hari', value: formatCurrency(metrics.weekly_revenue ?? 0) },
+    { label: 'Unit tersedia', value: `${metrics.available_units ?? 0} / ${metrics.total_units ?? 0}` },
+  ];
+
+  return (
+    <div className="modal-scrim" onClick={onClose}>
+      <div className="insight-modal" role="dialog" aria-modal="true" aria-labelledby="insight-modal-title" onClick={(event) => event.stopPropagation()}>
+        <button className="modal-close" onClick={onClose} aria-label="Tutup detail insight"><X size={18} /></button>
+        <div className="insight-modal-head">
+          <span className="insight-icon"><Sparkles size={19} /></span>
+          <div>
+            <p className="eyebrow">Insight minggu ini</p>
+            <h2 id="insight-modal-title">{insight.headline}</h2>
+            <p>{insight.summary}</p>
+          </div>
+        </div>
+        <div className="insight-metric-grid">
+          {cards.map((card) => <div key={card.label}><span>{card.label}</span><b>{card.value}</b></div>)}
+        </div>
+        <div className="insight-details">
+          <h3>Yang perlu diperhatikan</h3>
+          <ul>
+            {insight.details.map((detail, index) => (
+              <li key={index}><span>{index + 1}</span><p>{detail}</p></li>
+            ))}
+          </ul>
+        </div>
+        {insight.recommendation && (
+          <div className="insight-recommendation"><b>Rekomendasi</b><p>{insight.recommendation}</p></div>
+        )}
+        <div className="insight-modal-foot">
+          <small>{insight.source === 'groq' ? `Dibuat AI (${insight.model})` : 'Insight berbasis data internal'}{generatedAt ? ` · ${generatedAt}` : ''}</small>
+          <button type="button" className="secondary-button" onClick={onRefresh} disabled={refreshing}>
+            <RefreshCw size={15} className={refreshing ? 'spin' : ''} /> {refreshing ? 'Memperbarui…' : 'Perbarui insight'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function Overview({ onNavigate, user }) {
@@ -545,23 +874,36 @@ function Overview({ onNavigate, user }) {
           <button className="secondary-button full-width" onClick={() => onNavigate('inventory')}>Kelola inventaris <ArrowUpRight size={15} /></button>
         </aside>
       </section>
-      <section className="insight-banner"><span className="insight-icon"><Sparkles size={19} /></span><span><b>Insight minggu ini</b><small>Sony α7 IV paling banyak dilihat. Pertimbangkan menambah 1 unit untuk menangkap permintaan akhir pekan.</small></span><button className="text-button">Lihat detail <ArrowUpRight size={15} /></button></section>
+      <InsightBanner />
     </>
   );
 }
 
-function Catalog({ onSelectCamera, cameras: cameraSource = cameras, canManage = false }) {
+function Catalog({ onSelectCamera, cameras: cameraSource = cameras, canManage = false, availability = null, onClearAvailability }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('Semua');
   const [items, setItems] = useState(cameraSource);
   const [addOpen, setAddOpen] = useState(false);
   useEffect(() => { setItems(cameraSource); }, [cameraSource]);
+  useEffect(() => { setFilter('Semua'); }, [availability]);
   const filtered = useMemo(() => items.filter((camera) => (filter === 'Semua' || camera.status === filter) && camera.name.toLowerCase().includes(query.toLowerCase())), [items, query, filter]);
+  const availableCount = availability ? availability.cameras.filter((camera) => camera.available !== false).length : 0;
+  const filters = availability ? ['Semua', 'Tersedia', 'Terbatas', 'Tidak tersedia'] : ['Semua', 'Tersedia', 'Terbatas', 'Disewa'];
   return (
     <>
-      <section className="page-heading compact"><div><p className="eyebrow">Inventaris produk</p><h1>Katalog kamera</h1><p className="heading-subtitle">Kelola koleksi kamera yang tersedia untuk disewa.</p></div>{canManage && <button className="primary-button" onClick={() => setAddOpen(true)}><Plus size={17} /> Tambah kamera</button>}</section>
-      <section className="catalog-toolbar"><label className="search-field"><Search size={17} /><input placeholder="Cari nama kamera..." value={query} onChange={(event) => setQuery(event.target.value)} /></label><div className="filter-tabs">{['Semua', 'Tersedia', 'Terbatas', 'Disewa'].map((item) => <button key={item} className={filter === item ? 'active' : ''} onClick={() => setFilter(item)}>{item}</button>)}</div><button className="filter-button"><SlidersHorizontal size={16} /> Filter</button></section>
-      <section className="camera-grid">{filtered.map((camera) => <article className="camera-card" key={camera.id} onClick={() => onSelectCamera(camera)}><div className={`camera-image ${camera.tone}`}><span className="camera-tag">{camera.tag}</span><Camera size={76} strokeWidth={1.1} /><span className="camera-image-label">PHOTO / DEMO</span></div><div className="camera-card-body"><div className="camera-title"><div><h3>{camera.name}</h3><p>{camera.type}</p></div><button className="icon-button" aria-label={`Opsi ${camera.name}`}><MoreIcon /></button></div><div className="camera-card-foot"><span><b>{formatCurrency(camera.rate)}</b> <small>/ hari</small></span><StatusBadge status={camera.status} /></div></div></article>)}</section>
+      <section className="page-heading compact"><div><p className="eyebrow">Inventaris produk</p><h1>Katalog kamera</h1><p className="heading-subtitle">{availability ? 'Kamera yang sudah dicek untuk periode pilihanmu.' : 'Kelola koleksi kamera yang tersedia untuk disewa.'}</p></div>{canManage && <button className="primary-button" onClick={() => setAddOpen(true)}><Plus size={17} /> Tambah kamera</button>}</section>
+      {availability && (
+        <section className="availability-notice">
+          <span className="availability-notice-icon"><CalendarDays size={19} /></span>
+          <div>
+            <b>Ketersediaan {formatDateInput(availability.startDate)} — {formatDateInput(availability.endDate)}</b>
+            <small>{availableCount} dari {availability.cameras.length} kamera tersedia untuk sewa {availability.duration} hari.</small>
+          </div>
+          {onClearAvailability && <button className="text-button" onClick={onClearAvailability}>Tampilkan semua <X size={14} /></button>}
+        </section>
+      )}
+      <section className="catalog-toolbar"><label className="search-field"><Search size={17} /><input placeholder="Cari nama kamera..." value={query} onChange={(event) => setQuery(event.target.value)} /></label><div className="filter-tabs">{filters.map((item) => <button key={item} className={filter === item ? 'active' : ''} onClick={() => setFilter(item)}>{item}</button>)}</div><button className="filter-button"><SlidersHorizontal size={16} /> Filter</button></section>
+      <section className="camera-grid">{filtered.map((camera) => <article className={`camera-card${camera.available === false ? ' is-unavailable' : ''}`} key={camera.id} onClick={() => onSelectCamera(camera)}><div className={`camera-image ${camera.tone}`}><span className="camera-tag">{camera.tag}</span><Camera size={76} strokeWidth={1.1} /><span className="camera-image-label">PHOTO / DEMO</span></div><div className="camera-card-body"><div className="camera-title"><div><h3>{camera.name}</h3><p>{camera.type}</p></div><button className="icon-button" aria-label={`Opsi ${camera.name}`}><MoreIcon /></button></div><div className="camera-card-foot"><span><b>{formatCurrency(camera.rate)}</b> <small>/ hari</small></span><span className="camera-foot-status">{camera.availableStock !== undefined && <small>{camera.available ? `Sisa ${camera.availableStock} unit` : 'Tidak ada unit'}</small>}<StatusBadge status={camera.status} /></span></div></div></article>)}</section>
       {filtered.length === 0 && <div className="empty-state"><Search size={27} /><h2>Kamera tidak ditemukan</h2><p>Coba gunakan kata kunci atau filter yang berbeda.</p></div>}
       {addOpen && <AddCameraModal onClose={() => setAddOpen(false)} />}
     </>
@@ -2194,6 +2536,7 @@ function App(props) {
   const getRole = () => getRoute().startsWith('/pelanggan') ? 'customer' : 'admin';
   const getPage = (role) => {
     const route = getRoute();
+    if (route === '/ketersediaan/hasil') return 'availability-results';
     if (role === 'customer') {
       if (route === '/pelanggan/katalog') return 'customer-catalog';
       if (route === '/pelanggan/sewa') return 'customer-rentals';
@@ -2210,8 +2553,10 @@ function App(props) {
   const [active, setActive] = useState(() => getRoute() === '/' ? 'public-home' : getPage(getRole()));
   const [role, setRole] = useState(() => getRole());
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [selectedCamera, setSelectedCamera] = useState(null);
-  const viewer = active === 'public-home' ? (currentUser ? (currentUser.role === 'admin' ? 'admin' : 'customer') : 'guest') : role;
+  const viewer = currentUser ? (currentUser.role === 'admin' ? 'admin' : 'customer') : 'guest';
   const activeCustomerRentals = (props.rentals || []).filter((rental) => ['Menunggu persetujuan', 'Disetujui', 'Sedang disewa'].includes(rental.status)).length;
   const routeForPage = (page) => {
     const routes = {
@@ -2225,6 +2570,7 @@ function App(props) {
       'customer-rentals': '/pelanggan/sewa',
       'customer-profile': '/pelanggan/profil',
       settings: '/admin/pengaturan',
+      'availability-results': '/ketersediaan/hasil',
       help: role === 'customer' ? '/pelanggan' : '/admin',
     };
     return routes[page] || (role === 'customer' ? '/pelanggan' : '/admin');
@@ -2256,6 +2602,15 @@ function App(props) {
     setSidebarOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+  const checkAvailability = ({ startDate, endDate }) => {
+    router.get('/ketersediaan/hasil', { tanggal_mulai: startDate, tanggal_kembali: endDate });
+  };
+  const confirmLogout = () => {
+    setLoggingOut(true);
+    router.post('/logout', {}, {
+      onFinish: () => setLoggingOut(false),
+    });
+  };
   useEffect(() => {
     const handlePopState = () => {
       const nextRole = getRole();
@@ -2266,8 +2621,9 @@ function App(props) {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
-  let content = active === 'public-home' ? <PublicHome onNavigate={navigate} onSelectCamera={setSelectedCamera} /> : role === 'customer' ? <CustomerHome user={currentUser} rentals={props.rentals} cameras={props.cameras} onSelectCamera={setSelectedCamera} onNavigate={navigate} /> : <Overview user={currentUser} onNavigate={navigate} />;
-  if (role === 'customer' && active === 'customer-catalog') content = <CustomerCatalog onSelectCamera={setSelectedCamera} cameras={props.cameras} />;
+  let content = active === 'public-home' ? <PublicHome onNavigate={navigate} onSelectCamera={setSelectedCamera} onCheckAvailability={checkAvailability} cameras={props.cameras} /> : role === 'customer' ? <CustomerHome user={currentUser} rentals={props.rentals} cameras={props.cameras} onSelectCamera={setSelectedCamera} onNavigate={navigate} /> : <Overview user={currentUser} onNavigate={navigate} />;
+  if (active === 'availability-results') content = <AvailabilityResults availability={props.availability} onSelectCamera={setSelectedCamera} onNavigate={navigate} />;
+  if (role === 'customer' && active === 'customer-catalog') content = <CustomerCatalog onSelectCamera={setSelectedCamera} cameras={props.cameras} availability={props.availability} onClearAvailability={() => navigate('customer-catalog')} />;
   if (role === 'customer' && active === 'customer-rentals') content = <CustomerRentals rentals={props.rentals} summary={props.customerRentalSummary} onNavigate={navigate} />;
   if (role === 'customer' && active === 'customer-profile') content = <CustomerProfile user={currentUser} profile={props.profile} summary={props.profileSummary} rentals={props.rentals || []} flash={props.flash} />;
   if (role === 'admin' && active === 'catalog') content = <Catalog onSelectCamera={setSelectedCamera} cameras={props.cameras} canManage />;
@@ -2276,12 +2632,14 @@ function App(props) {
   if (role === 'admin' && active === 'inventory') content = <Inventory items={props.inventory} summary={props.inventorySummary} flash={props.flash} />;
   if (role === 'admin' && active === 'settings') content = <Settings user={currentUser} settings={props.settings} flash={props.flash} />;
   if (['help'].includes(active)) content = <Placeholder title="Pusat bantuan" />;
+  const isPublicPage = active === 'public-home' || active === 'availability-results';
   return (
     <div className="app-shell">
-      {active !== 'public-home' && <Sidebar user={currentUser} active={active} onChange={navigate} open={sidebarOpen} onClose={() => setSidebarOpen(false)} role={role} rentalCount={activeCustomerRentals} />}
+      {!isPublicPage && <Sidebar user={currentUser} active={active} onChange={navigate} open={sidebarOpen} onClose={() => setSidebarOpen(false)} role={role} rentalCount={activeCustomerRentals} onLogout={() => setLogoutOpen(true)} />}
       {sidebarOpen && <button className="sidebar-scrim" aria-label="Tutup navigasi" onClick={() => setSidebarOpen(false)} />}
-      <main className={active === 'public-home' ? 'public-main' : 'main-content'}>{active !== 'public-home' && <Topbar role={role} active={active} user={currentUser} onMenu={() => setSidebarOpen(true)} />}<div className={active === 'public-home' ? '' : 'page-content'}>{content}</div>{active !== 'public-home' && <footer className="app-footer">© 2026 Kamera Kita <span>•</span> Workspace operasional</footer>}</main>
+      <main className={isPublicPage ? 'public-main' : 'main-content'}>{!isPublicPage && <Topbar role={role} active={active} user={currentUser} onMenu={() => setSidebarOpen(true)} onLogout={() => setLogoutOpen(true)} />}<div className={isPublicPage ? '' : 'page-content'}>{content}</div>{!isPublicPage && <footer className="app-footer">© 2026 Kamera Kita <span>•</span> Workspace operasional</footer>}</main>
       {selectedCamera && <CameraDetailModal camera={selectedCamera} viewer={viewer} onClose={() => setSelectedCamera(null)} />}
+      {logoutOpen && <LogoutConfirmModal role={role} processing={loggingOut} onClose={() => setLogoutOpen(false)} onConfirm={confirmLogout} />}
     </div>
   );
 }

@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CameraController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerProfileController;
+use App\Http\Controllers\InsightController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\RentalController;
 use App\Http\Controllers\SettingController;
@@ -14,6 +15,7 @@ use Inertia\Inertia;
 Route::get('/', function () {
     return Inertia::render('App', [
         'title' => 'Beranda',
+        'cameras' => Camera::adminList(),
     ]);
 })->name('home');
 
@@ -34,6 +36,8 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::get('/katalog', [CameraController::class, 'index'])->name('catalog');
+Route::get('/ketersediaan', [CameraController::class, 'availability'])->name('catalog.availability');
+Route::get('/ketersediaan/hasil', [CameraController::class, 'availabilityPage'])->name('catalog.availability.results');
 Route::post('/register', [AuthController::class, 'register'])->name('register.store');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1')->name('login.store');
 Route::post('/admin/login', [AuthController::class, 'adminLogin'])->middleware('throttle:10,1')->name('admin.login.store');
@@ -48,6 +52,7 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::middleware(['auth', 'role:admin'])->group(function () {
+    Route::get('/admin/insight', [InsightController::class, 'show'])->name('admin.insight');
     Route::get('/admin/pelanggan', [CustomerController::class, 'index'])->name('admin.customers');
     Route::get('/admin/inventaris', [InventoryController::class, 'index'])->name('admin.inventory');
     Route::patch('/admin/inventaris/{camera}', [InventoryController::class, 'update'])->name('admin.inventory.update');

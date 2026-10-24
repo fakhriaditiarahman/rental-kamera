@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Camera;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class CameraController extends Controller
@@ -14,6 +16,53 @@ class CameraController extends Controller
             'title' => 'Katalog Kamera',
             'cameras' => Camera::query()->where('status_ketersediaan', '!=', 'Tidak tersedia')->orderBy('nama_produk')->get(),
         ]);
+    }
+
+    public function availability(Request $request)
+    {
+        return response()->json($this->availabilityPayload($request));
+    }
+
+    public function availabilityPage(Request $request)
+    {
+        try {
+            $payload = $this->availabilityPayload($request);
+        } catch (ValidationException) {
+            return redirect()->route('home');
+        }
+
+        return Inertia::render('App', [
+            'title' => 'Ketersediaan Kamera',
+            'availability' => $payload,
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function availabilityPayload(Request $request): array
+    {
+        $data = $request->validate([
+            'tanggal_mulai' => ['required', 'date', 'after_or_equal:today'],
+            'tanggal_kembali' => ['required', 'date', 'after_or_equal:tanggal_mulai'],
+        ], [
+            'tanggal_mulai.required' => 'Tanggal mulai wajib diisi.',
+            'tanggal_mulai.date' => 'Tanggal mulai tidak valid.',
+            'tanggal_mulai.after_or_equal' => 'Tanggal mulai tidak boleh sebelum hari ini.',
+            'tanggal_kembali.required' => 'Tanggal kembali wajib diisi.',
+            'tanggal_kembali.date' => 'Tanggal kembali tidak valid.',
+            'tanggal_kembali.after_or_equal' => 'Tanggal kembali tidak boleh sebelum tanggal mulai.',
+        ]);
+
+        $start = Carbon::parse($data['tanggal_mulai']);
+        $end = Carbon::parse($data['tanggal_kembali']);
+
+        return [
+            'startDate' => $start->toDateString(),
+            'endDate' => $end->toDateString(),
+            'duration' => $start->diffInDays($end) + 1,
+            'cameras' => Camera::availabilityList($start->toDateString(), $end->toDateString())->all(),
+        ];
     }
 
     public function store(Request $request)
