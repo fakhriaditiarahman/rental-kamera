@@ -7,6 +7,7 @@ use App\Models\Rental;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class RentalController extends Controller
 {
@@ -16,6 +17,15 @@ class RentalController extends Controller
             'camera_id' => ['required', 'exists:produk,id_produk'],
             'start_date' => ['required', 'date', 'after_or_equal:today'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+        ], [
+            'camera_id.required' => 'Kamera wajib dipilih.',
+            'camera_id.exists' => 'Kamera tidak ditemukan.',
+            'start_date.required' => 'Tanggal mulai wajib diisi.',
+            'start_date.date' => 'Tanggal mulai tidak valid.',
+            'start_date.after_or_equal' => 'Tanggal mulai tidak boleh sebelum hari ini.',
+            'end_date.required' => 'Tanggal kembali wajib diisi.',
+            'end_date.date' => 'Tanggal kembali tidak valid.',
+            'end_date.after_or_equal' => 'Tanggal kembali tidak boleh sebelum tanggal mulai.',
         ]);
 
         $rental = DB::transaction(function () use ($data, $request) {
@@ -26,13 +36,15 @@ class RentalController extends Controller
 
             $activeBookings = Rental::query()
                 ->where('id_produk', $camera->id_produk)
-                ->whereIn('status_sewa', ['menunggu_persetujuan', 'disetujui', 'sedang_disewa'])
+                ->whereIn('status_sewa', Rental::ACTIVE_STATUSES)
                 ->whereDate('tanggal_sewa', '<=', $end)
                 ->whereDate('tanggal_kembali', '>=', $start)
                 ->count();
 
             if ($activeBookings >= $camera->stock) {
-                abort(422, 'Kamera tidak tersedia pada periode tersebut.');
+                throw ValidationException::withMessages([
+                    'start_date' => 'Kamera tidak tersedia pada periode tersebut. Silakan pilih tanggal lain.',
+                ]);
             }
 
             return Rental::create([

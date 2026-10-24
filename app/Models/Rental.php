@@ -6,6 +6,17 @@ use Illuminate\Database\Eloquent\Model;
 
 class Rental extends Model
 {
+    public const ACTIVE_STATUSES = ['menunggu_persetujuan', 'disetujui', 'sedang_disewa'];
+
+    public const STATUS_LABELS = [
+        'menunggu_persetujuan' => 'Menunggu persetujuan',
+        'disetujui' => 'Disetujui',
+        'sedang_disewa' => 'Sedang disewa',
+        'selesai' => 'Selesai',
+        'ditolak' => 'Ditolak',
+        'dibatalkan' => 'Dibatalkan',
+    ];
+
     protected $table = 'transaksi';
 
     protected $primaryKey = 'id_transaksi';
@@ -46,6 +57,11 @@ class Rental extends Model
     public function getTotalAmountAttribute(): mixed
     {
         return $this->total_biaya;
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return self::STATUS_LABELS[$this->status_sewa] ?? 'Dibatalkan';
     }
 
     public function user()

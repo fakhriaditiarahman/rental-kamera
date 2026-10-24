@@ -2,6 +2,9 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CameraController;
+use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\CustomerProfileController;
+use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\RentalController;
 use App\Http\Controllers\SettingController;
 use App\Models\Camera;
@@ -45,10 +48,19 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::middleware(['auth', 'role:admin'])->group(function () {
+    Route::get('/admin/pelanggan', [CustomerController::class, 'index'])->name('admin.customers');
+    Route::get('/admin/inventaris', [InventoryController::class, 'index'])->name('admin.inventory');
+    Route::patch('/admin/inventaris/{camera}', [InventoryController::class, 'update'])->name('admin.inventory.update');
     Route::get('/admin/pengaturan', [SettingController::class, 'index'])->name('admin.settings');
     Route::patch('/admin/pengaturan', [SettingController::class, 'update'])->name('admin.settings.update');
     Route::patch('/admin/pengaturan/profil', [SettingController::class, 'updateProfile'])->name('admin.settings.profile');
     Route::put('/admin/pengaturan/password', [SettingController::class, 'updatePassword'])->name('admin.settings.password');
+});
+
+Route::middleware(['auth', 'role:customer'])->group(function () {
+    Route::get('/pelanggan/profil', [CustomerProfileController::class, 'index'])->name('customer.profile');
+    Route::patch('/pelanggan/profil', [CustomerProfileController::class, 'update'])->name('customer.profile.update');
+    Route::put('/pelanggan/profil/password', [CustomerProfileController::class, 'updatePassword'])->name('customer.profile.password');
 });
 
 Route::get('/admin/{path?}', function () {
@@ -58,31 +70,9 @@ Route::get('/admin/{path?}', function () {
     ]);
 })->middleware(['auth', 'role:admin'])->where('path', '.*')->name('admin.dashboard');
 
-Route::get('/pelanggan/{path?}', function () {
-    $user = request()->user();
-
-    return Inertia::render('App', [
-        'title' => 'Dashboard Pelanggan',
-        'customer' => [
-            'id' => $user->id_pelanggan,
-            'name' => $user->name,
-            'phone' => $user->phone,
-            'address' => $user->address,
-        ],
-        'rentals' => $user->rentals()->with('camera')->latest()->get()->map(fn ($rental) => [
-            'id' => $rental->transaction_code,
-            'product' => $rental->camera->name,
-            'dates' => $rental->start_date->translatedFormat('d M Y').' — '.$rental->end_date->translatedFormat('d M Y'),
-            'total' => (float) $rental->total_amount,
-            'status' => match ($rental->status_sewa) {
-                'menunggu_persetujuan' => 'Menunggu persetujuan',
-                'disetujui' => 'Disetujui',
-                'sedang_disewa' => 'Sedang disewa',
-                'selesai' => 'Selesai',
-                'ditolak' => 'Ditolak',
-                default => 'Dibatalkan',
-            },
-            'tone' => 'sand',
-        ]),
-    ]);
-})->middleware(['auth', 'role:customer'])->where('path', '.*')->name('customer.dashboard');
+Route::middleware(['auth', 'role:customer'])->group(function () {
+    Route::get('/pelanggan/sewa', [CustomerController::class, 'rentals'])->name('customer.rentals');
+    Route::get('/pelanggan/{path?}', [CustomerController::class, 'dashboard'])
+        ->where('path', '.*')
+        ->name('customer.dashboard');
+});

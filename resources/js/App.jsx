@@ -54,6 +54,49 @@ const customerRentals = [
 const formatCurrency = (value) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value);
 
+const formatLongDate = (date = new Date()) =>
+  new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(date);
+
+const greetingForTime = (date = new Date()) => {
+  const hour = date.getHours();
+  if (hour < 11) return 'Selamat pagi';
+  if (hour < 15) return 'Selamat siang';
+  if (hour < 19) return 'Selamat sore';
+  return 'Selamat malam';
+};
+
+const formatDateRange = (date = new Date()) => {
+  const start = new Date(date);
+  start.setDate(date.getDate() - 6);
+  const sameMonth = start.getMonth() === date.getMonth() && start.getFullYear() === date.getFullYear();
+  const startLabel = new Intl.DateTimeFormat('id-ID', sameMonth ? { day: 'numeric' } : { day: 'numeric', month: 'short' }).format(start);
+  const endLabel = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
+  return `${startLabel} — ${endLabel}`;
+};
+
+const toDateInputValue = (date = new Date()) => {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
+};
+
+const parseDateInput = (value) => {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const formatDateInput = (value) => {
+  const date = parseDateInput(value);
+  return date ? new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }).format(date) : '';
+};
+
+const rentalDuration = (start, end) => {
+  const startDate = parseDateInput(start);
+  const endDate = parseDateInput(end);
+  if (!startDate || !endDate || endDate < startDate) return 0;
+  return Math.round((endDate - startDate) / 86400000) + 1;
+};
+
 function IconButton({ label, children, onClick }) {
   return <button className="icon-button" aria-label={label} onClick={onClick}>{children}</button>;
 }
@@ -68,12 +111,12 @@ function Logo() {
   );
 }
 
-function Sidebar({ active, onChange, open, onClose, role, user }) {
+function Sidebar({ active, onChange, open, onClose, role, user, rentalCount = 0 }) {
   const nav = role === 'customer'
     ? [
       { id: 'customer-home', label: 'Dashboard', icon: LayoutDashboard },
       { id: 'customer-catalog', label: 'Cari kamera', icon: Camera },
-      { id: 'customer-rentals', label: 'Sewa saya', icon: CalendarDays, count: 1 },
+      { id: 'customer-rentals', label: 'Sewa saya', icon: CalendarDays, count: rentalCount },
       { id: 'customer-profile', label: 'Profil saya', icon: Users },
     ]
     : [
@@ -114,10 +157,10 @@ function getInitials(name) {
   return name.split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
 }
 
-function CustomerHome({ onSelectCamera, onNavigate, user, rentals = [] }) {
+function CustomerHome({ onSelectCamera, onNavigate, user, rentals = [], cameras: cameraSource = cameras }) {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState('Semua');
-  const filtered = cameras.filter((camera) => (selected === 'Semua' || camera.status === selected) && camera.name.toLowerCase().includes(query.toLowerCase()));
+  const filtered = cameraSource.filter((camera) => (selected === 'Semua' || camera.status === selected) && camera.name.toLowerCase().includes(query.toLowerCase()));
   return (
     <div className="customer-dashboard">
       <section className="page-heading customer-heading">
@@ -127,12 +170,12 @@ function CustomerHome({ onSelectCamera, onNavigate, user, rentals = [] }) {
       <section className="customer-stats">
         <article className="customer-stat accent"><span className="customer-stat-icon"><CalendarDays size={18} /></span><span><small>Sewa aktif</small><strong>{rentals.filter((rental) => !['Selesai', 'Ditolak', 'Dibatalkan'].includes(rental.status)).length}</strong></span><b>{rentals[0]?.status || 'Belum ada sewa'}</b></article>
         <article className="customer-stat"><span className="customer-stat-icon"><Clock3 size={18} /></span><span><small>Total penyewaan</small><strong>{rentals.length}</strong></span><b>Sejak bergabung</b></article>
-        <article className="customer-stat warm"><span className="customer-stat-icon"><Sparkles size={18} /></span><span><small>Total pengeluaran</small><strong>{formatCurrency(rentals.reduce((total, rental) => total + rental.total, 0))}</strong></span><b>Semua transaksi</b></article>
+        <article className="customer-stat warm"><span className="customer-stat-icon"><Sparkles size={18} /></span><span><small>Total pengeluaran</small><strong>{formatCurrency(rentals.filter((rental) => rental.status === 'Selesai').reduce((total, rental) => total + rental.total, 0))}</strong></span><b>Transaksi selesai</b></article>
       </section>
       <section className="customer-dashboard-grid">
         <article className="panel next-rental-panel">
-          <div className="panel-heading"><div><p className="eyebrow">Pesanan terbaru</p><h2>Permintaan sedang diproses</h2></div><StatusBadge status="Menunggu persetujuan" /></div>
-          {rentals[0] ? <div className="next-rental-body"><div className={`customer-rental-visual ${rentals[0].tone}`}><Camera size={58} strokeWidth={1.1} /><span>PHOTO / DEMO</span></div><div className="next-rental-copy"><h3>{rentals[0].product}</h3><p>{rentals[0].dates}</p><div className="rental-meta"><span><CalendarDays size={14} /> Rental</span><span><b>{formatCurrency(rentals[0].total)}</b></span></div><button className="secondary-button">Lihat detail <ArrowUpRight size={15} /></button></div></div> : <div className="empty-state"><h2>Belum ada penyewaan</h2><p>Jelajahi katalog untuk memulai penyewaan pertamamu.</p></div>}
+          <div className="panel-heading"><div><p className="eyebrow">Pesanan terbaru</p><h2>Permintaan sedang diproses</h2></div><StatusBadge status={rentals[0]?.status || 'Menunggu persetujuan'} /></div>
+          {rentals[0] ? <div className="next-rental-body"><div className={`customer-rental-visual ${rentals[0].tone}`}><Camera size={58} strokeWidth={1.1} /><span>PHOTO / DEMO</span></div><div className="next-rental-copy"><h3>{rentals[0].product}</h3><p>{rentals[0].dates}</p><div className="rental-meta"><span><CalendarDays size={14} /> Rental</span><span><b>{formatCurrency(rentals[0].total)}</b></span></div><button className="secondary-button" onClick={() => onNavigate('customer-rentals')}>Lihat detail <ArrowUpRight size={15} /></button></div></div> : <div className="empty-state"><h2>Belum ada penyewaan</h2><p>Jelajahi katalog untuk memulai penyewaan pertamamu.</p></div>}
         </article>
         <aside className="panel customer-tip"><span className="insight-icon"><Sparkles size={19} /></span><p className="eyebrow">Tips untuk kamu</p><h2>Temukan kamera untuk cerita berikutnya.</h2><p>Jelajahi koleksi kamera yang tersedia dan pilih gear yang sesuai kebutuhan produksi kamu.</p><button className="text-button" onClick={() => onNavigate('customer-catalog')}>Jelajahi katalog <ArrowUpRight size={15} /></button></aside>
       </section>
@@ -149,8 +192,241 @@ function CustomerHome({ onSelectCamera, onNavigate, user, rentals = [] }) {
   );
 }
 
-function CustomerCatalog({ onSelectCamera }) {
-  return <Catalog onSelectCamera={onSelectCamera} />;
+function CustomerCatalog({ onSelectCamera, cameras: cameraSource = cameras }) {
+  return <Catalog onSelectCamera={onSelectCamera} cameras={cameraSource} />;
+}
+
+const ACTIVE_RENTAL_STATUSES = ['Menunggu persetujuan', 'Disetujui', 'Sedang disewa'];
+const CUSTOMER_RENTAL_FILTERS = ['Semua', 'Menunggu persetujuan', 'Disetujui', 'Sedang disewa', 'Selesai', 'Ditolak', 'Dibatalkan'];
+const RENTAL_TIMELINE = ['Menunggu persetujuan', 'Disetujui', 'Sedang disewa', 'Selesai'];
+
+const CUSTOMER_RENTAL_CONTRACT = [
+  {
+    title: 'GET /pelanggan/sewa',
+    description: 'Props Inertia untuk halaman Sewa saya. `rentals` hanya berisi transaksi milik pelanggan yang sedang login, diurutkan dari tanggal sewa terbaru.',
+    code: `{
+  "component": "App",
+  "props": {
+    "auth": { "user": { "id": 2, "name": "Nadia Putri", "role": "customer" } },
+    "customer": {
+      "id": 2,
+      "name": "Nadia Putri",
+      "phone": "081298765432",
+      "address": "Jl. Melati No. 10"
+    },
+    "rentals": [
+      {
+        "id": "SK-261024120000-ABCD",
+        "product": "Sony α7 IV",
+        "type": "Mirrorless",
+        "startDate": "2026-10-24",
+        "endDate": "2026-10-27",
+        "dates": "24 Oct 2026 — 27 Oct 2026",
+        "duration": 4,
+        "rate": 275000,
+        "total": 1100000,
+        "status": "Sedang disewa",
+        "statusCode": "sedang_disewa",
+        "tone": "sand",
+        "pickedUpAt": "24 Oct 2026 10:15",
+        "returnedAt": null
+      }
+    ],
+    "customerRentalSummary": {
+      "total": 3,
+      "active": 1,
+      "pending": 0,
+      "completed": 2,
+      "total_spent": 1650000,
+      "next_return_at": "27 Oct 2026"
+    },
+    "cameras": []
+  }
+}`,
+  },
+  {
+    title: 'Aturan data',
+    description: 'Halaman hanya membaca transaksi pelanggan sendiri. Ringkasan dihitung dari transaksi tersebut, bukan dari data demo frontend.',
+    code: `rentals              = transaksi WHERE id_pelanggan = auth.user.id
+urutan               = tanggal_sewa DESC, id_transaksi DESC
+active               = menunggu_persetujuan | disetujui | sedang_disewa
+pending              = menunggu_persetujuan
+completed            = selesai
+total_spent          = SUM(total_biaya) WHERE status_sewa = selesai
+next_return_at       = tanggal_kembali terdekat pada status disetujui | sedang_disewa
+rate                 = harga_sewa_saat_transaksi (tarif historis, bukan tarif produk saat ini)`,
+  },
+  {
+    title: 'Status transaksi',
+    description: 'Status disimpan pada kolom `status_sewa` dan ditampilkan dengan label Indonesia. Hanya admin yang mengubah persetujuan dan mencatat pengembalian.',
+    code: `menunggu_persetujuan → Menunggu persetujuan
+disetujui             → Disetujui
+sedang_disewa         → Sedang disewa
+selesai               → Selesai
+ditolak               → Ditolak
+dibatalkan            → Dibatalkan
+
+Timeline pelanggan: Menunggu persetujuan → Disetujui → Sedang disewa → Selesai`,
+  },
+  {
+    title: 'Batasan MVP',
+    description: 'Modul ini hanya membaca riwayat. Pembatalan oleh pelanggan, unggah bukti pembayaran, dan pengingat pengembalian belum termasuk kontrak MVP.',
+    code: `Tersedia:
+GET   /pelanggan/sewa
+POST  /sewa
+PATCH /sewa/{id}/status   (khusus admin)
+
+Belum tersedia:
+PATCH /sewa/{id}/batal    (pelanggan)
+POST  /sewa/{id}/bukti    (unggah bukti)`,
+  },
+];
+
+function rentalStage(status) {
+  return RENTAL_TIMELINE.indexOf(status);
+}
+
+function CustomerRentalDetailModal({ rental, onClose }) {
+  const stage = rentalStage(rental.status);
+  const cancelled = stage === -1;
+
+  return (
+    <div className="modal-scrim" onClick={onClose}>
+      <div className="customer-detail rental-detail" role="dialog" aria-modal="true" aria-labelledby="rental-detail-title" onClick={(event) => event.stopPropagation()}>
+        <button className="modal-close" onClick={onClose} aria-label="Tutup detail penyewaan"><X size={18} /></button>
+        <div className="customer-detail-head">
+          <span className={`camera-thumb large ${rental.tone}`}><Camera size={24} /></span>
+          <div><p className="eyebrow">Detail penyewaan</p><h2 id="rental-detail-title">{rental.product}</h2><StatusBadge status={rental.status} /></div>
+        </div>
+        <div className="customer-detail-meta">
+          <div><span>Kode transaksi</span><b className="mono">{rental.id}</b></div>
+          <div><span>Jenis kamera</span><b>{rental.type}</b></div>
+          <div><span>Periode sewa</span><b>{rental.dates}</b></div>
+          <div><span>Durasi</span><b>{rental.duration} hari</b></div>
+          <div><span>Tarif harian saat transaksi</span><b>{formatCurrency(rental.rate)}</b></div>
+          <div><span>Total biaya</span><b>{formatCurrency(rental.total)}</b></div>
+          {rental.pickedUpAt && <div><span>Kamera diambil</span><b>{rental.pickedUpAt}</b></div>}
+          {rental.returnedAt && <div><span>Kamera dikembalikan</span><b>{rental.returnedAt}</b></div>}
+        </div>
+        {cancelled ? (
+          <div className="rental-timeline-cancelled"><AlertCircle size={17} /><span>Pengajuan ini {rental.status === 'Ditolak' ? 'ditolak oleh admin' : 'dibatalkan'}. Kamu tetap bisa mengajukan sewa baru dari katalog.</span></div>
+        ) : (
+          <ol className="rental-timeline">
+            {RENTAL_TIMELINE.map((step, index) => (
+              <li key={step} className={index < stage ? 'is-done' : index === stage ? 'is-current' : ''}>
+                <span className="rental-timeline-dot">{index < stage ? <Check size={11} /> : index + 1}</span>
+                <small>{step}</small>
+              </li>
+            ))}
+          </ol>
+        )}
+        <p className="rental-detail-note">Total biaya dihitung dari durasi inklusif (tanggal sewa sampai tanggal kembali) dikali tarif harian yang tersimpan saat transaksi dibuat.</p>
+      </div>
+    </div>
+  );
+}
+
+function CustomerRentals({ rentals = [], summary = {}, onNavigate }) {
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('Semua');
+  const [selected, setSelected] = useState(null);
+  const [docsOpen, setDocsOpen] = useState(false);
+
+  const stats = useMemo(() => {
+    const completed = rentals.filter((rental) => rental.status === 'Selesai');
+    return {
+      total: summary.total ?? rentals.length,
+      active: summary.active ?? rentals.filter((rental) => ACTIVE_RENTAL_STATUSES.includes(rental.status)).length,
+      pending: summary.pending ?? rentals.filter((rental) => rental.status === 'Menunggu persetujuan').length,
+      completed: summary.completed ?? completed.length,
+      totalSpent: summary.total_spent ?? completed.reduce((total, rental) => total + (rental.total || 0), 0),
+      nextReturnAt: summary.next_return_at ?? null,
+    };
+  }, [rentals, summary]);
+
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return rentals.filter((rental) => {
+      const matchesFilter = filter === 'Semua' || rental.status === filter;
+      const haystack = `${rental.id} ${rental.product} ${rental.type} ${rental.dates}`.toLowerCase();
+      return matchesFilter && haystack.includes(needle);
+    });
+  }, [filter, query, rentals]);
+
+  const metrics = [
+    { label: 'Total penyewaan', value: stats.total, detail: 'Seluruh transaksi kamu', period: 'Sepanjang waktu', icon: FileText, tone: 'accent' },
+    { label: 'Menunggu persetujuan', value: stats.pending, detail: 'Menunggu konfirmasi admin', period: 'Status pengajuan', icon: Clock3, tone: 'warm' },
+    { label: 'Sedang berjalan', value: stats.active, detail: stats.nextReturnAt ? `Kembali ${stats.nextReturnAt}` : 'Pengajuan & sewa aktif', period: 'Status aktif', icon: CalendarDays, tone: 'neutral' },
+    { label: 'Total pengeluaran', value: formatCurrency(stats.totalSpent), detail: `${stats.completed} transaksi selesai`, period: 'Sepanjang waktu', icon: Store, tone: 'soft' },
+  ];
+
+  return (
+    <>
+      <section className="page-heading compact customers-heading">
+        <div><p className="eyebrow">Akun pelanggan</p><h1>Sewa saya</h1><p className="heading-subtitle">Pantau status pengajuan, jadwal, dan riwayat penyewaanmu di satu tempat.</p></div>
+        <button className="secondary-button" onClick={() => setDocsOpen(true)}><FileText size={16} /> Dokumentasi kontrak</button>
+      </section>
+
+      <section className="stats-grid customer-metrics">
+        {metrics.map(({ label, value, detail, period, icon: MetricIcon, tone }) => (
+          <article className={`stat-card ${tone}`} key={label}>
+            <div className="stat-card-head"><span className="stat-icon"><MetricIcon size={18} /></span><span className="stat-period">{period}</span></div>
+            <p>{label}</p>
+            <strong>{value}</strong>
+            <div className="stat-detail"><span>{detail}</span></div>
+          </article>
+        ))}
+      </section>
+
+      <section className="catalog-toolbar customers-toolbar">
+        <label className="search-field"><Search size={17} /><input placeholder="Cari kode, kamera, atau periode..." value={query} onChange={(event) => setQuery(event.target.value)} /></label>
+        <div className="filter-tabs customers-tabs customer-rentals-tabs">{CUSTOMER_RENTAL_FILTERS.map((item) => <button key={item} className={filter === item ? 'active' : ''} onClick={() => setFilter(item)}>{item}</button>)}</div>
+      </section>
+
+      <section className="panel customers-panel">
+        <div className="panel-heading"><div><h2>Daftar penyewaan</h2><p>{filtered.length} dari {rentals.length} transaksi ditampilkan.</p></div><span className="settings-badge"><CalendarDays size={15} /> {stats.active} aktif</span></div>
+        {filtered.length > 0 ? (
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Kamera</th><th>Kode transaksi</th><th>Periode sewa</th><th>Durasi</th><th>Total</th><th>Status</th><th /></tr></thead>
+              <tbody>
+                {filtered.map((rental) => (
+                  <tr key={rental.id}>
+                    <td><div className="customer-cell"><span className={`camera-thumb ${rental.tone}`}><Camera size={17} /></span><span><b>{rental.product}</b><small>{rental.type}</small></span></div></td>
+                    <td className="mono">{rental.id}</td>
+                    <td>{rental.dates}</td>
+                    <td>{rental.duration} hari</td>
+                    <td className="money">{formatCurrency(rental.total)}</td>
+                    <td><StatusBadge status={rental.status} /></td>
+                    <td><button className="text-button" onClick={() => setSelected(rental)}>Detail <ArrowUpRight size={14} /></button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="empty-state customers-empty">
+            <CalendarDays size={27} />
+            <h2>{rentals.length === 0 ? 'Belum ada penyewaan' : 'Transaksi tidak ditemukan'}</h2>
+            <p>{rentals.length === 0 ? 'Jelajahi katalog dan ajukan sewa pertamamu.' : 'Coba gunakan kata kunci atau filter status yang berbeda.'}</p>
+            {rentals.length === 0 && <button className="primary-button" onClick={() => onNavigate('customer-catalog')}>Cari kamera <ArrowUpRight size={15} /></button>}
+          </div>
+        )}
+      </section>
+
+      {selected && <CustomerRentalDetailModal rental={selected} onClose={() => setSelected(null)} />}
+
+      {docsOpen && (
+        <ContractDocsModal
+          onClose={() => setDocsOpen(false)}
+          title="Dokumentasi modul Sewa saya"
+          description="Bentuk data dan endpoint yang dipakai halaman ini. Semua transaksi difilter berdasarkan pelanggan yang sedang login."
+          sections={CUSTOMER_RENTAL_CONTRACT}
+          note="Halaman ini hanya membaca transaksi. Perubahan status persetujuan dan pencatatan pengembalian tetap dilakukan admin lewat PATCH /sewa/{id}/status."
+        />
+      )}
+    </>
+  );
 }
 
 function PublicHome({ onNavigate, onSelectCamera }) {
@@ -197,7 +473,7 @@ function PublicHome({ onNavigate, onSelectCamera }) {
   );
 }
 
-function Topbar({ onMenu, role, active }) {
+function Topbar({ onMenu, role, active, user }) {
   const labels = {
     overview: 'Overview',
     catalog: 'Katalog kamera',
@@ -216,9 +492,9 @@ function Topbar({ onMenu, role, active }) {
       <IconButton label="Buka navigasi" onClick={onMenu}><Menu size={20} /></IconButton>
       <div className="breadcrumb"><span>{role === 'customer' ? 'Akun pelanggan' : 'Workspace admin'}</span><b>/</b><strong>{labels[active] || (role === 'customer' ? 'Dashboard' : 'Overview')}</strong></div>
       <div className="topbar-actions">
-        <button className="date-chip"><CalendarDays size={16} /> 18 — 24 Sep 2024 <ChevronDown size={14} /></button>
+        <button className="date-chip"><CalendarDays size={16} /> {formatDateRange()} <ChevronDown size={14} /></button>
         <IconButton label="Notifikasi"><Bell size={19} /></IconButton>
-        <span className="topbar-avatar">{role === 'customer' ? 'NP' : 'AR'}</span>
+        <span className="topbar-avatar">{getInitials(user?.name || (role === 'customer' ? 'Pelanggan' : 'Admin'))}</span>
       </div>
     </header>
   );
@@ -240,11 +516,12 @@ function StatusBadge({ status }) {
   return <span className={`status-badge ${statusClass}`}><i />{status}</span>;
 }
 
-function Overview({ onNavigate }) {
+function Overview({ onNavigate, user }) {
+  const firstName = user?.name?.trim().split(/\s+/)[0] || 'Admin';
   return (
     <>
       <section className="page-heading">
-        <div><p className="eyebrow">Rabu, 18 September 2024</p><h1>Selamat pagi, Ardi.</h1><p className="heading-subtitle">Berikut ringkasan operasional rental kamu hari ini.</p></div>
+        <div><p className="eyebrow">{formatLongDate()}</p><h1>{greetingForTime()}, {firstName}.</h1><p className="heading-subtitle">Berikut ringkasan operasional rental kamu hari ini.</p></div>
         <button className="primary-button" onClick={() => onNavigate('catalog')}><Plus size={17} /> Tambah kamera</button>
       </section>
       <section className="stats-grid">
@@ -504,25 +781,25 @@ function SettingsPasswordField({ id, label, value, onChange, error, hint, autoCo
   );
 }
 
-function ContractDocsModal({ onClose }) {
+function ContractDocsModal({ onClose, title, description, sections, note }) {
   return (
     <div className="modal-scrim" onClick={onClose}>
-      <div className="settings-docs" role="dialog" aria-modal="true" aria-labelledby="settings-docs-title" onClick={(event) => event.stopPropagation()}>
+      <div className="settings-docs" role="dialog" aria-modal="true" aria-labelledby="contract-docs-title" onClick={(event) => event.stopPropagation()}>
         <button className="modal-close" onClick={onClose} aria-label="Tutup dokumentasi"><X size={18} /></button>
         <div className="form-modal-head settings-docs-head">
           <p className="eyebrow">Kontrak data</p>
-          <h2 id="settings-docs-title">Dokumentasi modul Pengaturan</h2>
-          <p>Bentuk data dan endpoint yang dipakai halaman ini. Pertahankan kontrak ini saat memindahkan logika ke action Laravel lain.</p>
+          <h2 id="contract-docs-title">{title}</h2>
+          <p>{description}</p>
         </div>
         <div className="settings-docs-body">
-          {SETTINGS_CONTRACT.map((section) => (
+          {sections.map((section) => (
             <section className="settings-docs-section" key={section.title}>
               <h3>{section.title}</h3>
               <p>{section.description}</p>
               <pre><code>{section.code}</code></pre>
             </section>
           ))}
-          <p className="settings-docs-note">Validasi gagal mengembalikan status 422 dengan key error sesuai nama field, sehingga form dapat menampilkan pesan di tab yang tepat.</p>
+          {note && <p className="settings-docs-note">{note}</p>}
         </div>
       </div>
     </div>
@@ -862,7 +1139,815 @@ function Settings({ user, settings, flash }) {
         </div>
       </section>
 
-      {docsOpen && <ContractDocsModal onClose={() => setDocsOpen(false)} />}
+      {docsOpen && (
+        <ContractDocsModal
+          onClose={() => setDocsOpen(false)}
+          title="Dokumentasi modul Pengaturan"
+          description="Bentuk data dan endpoint yang dipakai halaman ini. Pertahankan kontrak ini saat memindahkan logika ke action Laravel lain."
+          sections={SETTINGS_CONTRACT}
+          note="Validasi gagal mengembalikan status 422 dengan key error sesuai nama field, sehingga form dapat menampilkan pesan di tab yang tepat."
+        />
+      )}
+    </>
+  );
+}
+
+const CUSTOMER_FILTERS = ['Semua', 'Sedang menyewa', 'Pernah menyewa', 'Belum pernah menyewa'];
+
+const CUSTOMER_CONTRACT = [
+  {
+    title: 'GET /admin/pelanggan',
+    description: 'Props Inertia untuk halaman Pelanggan. Hanya akun ber-role customer yang dikirim, diurutkan berdasarkan nama.',
+    code: `{
+  "component": "App",
+  "props": {
+    "auth": { "user": { "id": 1, "name": "Admin Sewa Kamera", "role": "admin" } },
+    "customers": [
+      {
+        "id": 2,
+        "name": "Nadia Putri",
+        "phone": "081298765432",
+        "address": "Jl. Melati No. 10",
+        "joinedAt": "02 Oct 2026",
+        "rentalCount": 2,
+        "activeRentalCount": 1,
+        "completedRentalCount": 1,
+        "totalSpent": 550000,
+        "lastRentalAt": "24 Oct 2026",
+        "status": "Sedang menyewa",
+        "tone": "sand",
+        "rentals": [
+          {
+            "id": "SK-261024120000-ABCD",
+            "product": "Sony α7 IV",
+            "dates": "24 Oct 2026 — 27 Oct 2026",
+            "duration": 4,
+            "total": 1100000,
+            "status": "Sedang disewa",
+            "tone": "sand"
+          }
+        ]
+      }
+    ],
+    "customerSummary": {
+      "total": 12,
+      "active": 3,
+      "new_this_month": 2,
+      "completed_revenue": 8450000
+    }
+  }
+}`,
+  },
+  {
+    title: 'Aturan agregasi',
+    description: 'Nilai ringkasan dihitung dari relasi transaksi milik pelanggan, bukan dari data demo frontend.',
+    code: `activeRentalCount   = transaksi berstatus menunggu_persetujuan | disetujui | sedang_disewa
+completedRentalCount = transaksi berstatus selesai
+totalSpent          = SUM(total_biaya) transaksi berstatus selesai
+lastRentalAt        = tanggal_sewa transaksi terbaru
+status pelanggan    = "Sedang menyewa" > "Pernah menyewa" > "Belum pernah menyewa"
+rentals             = riwayat terbaru lebih dulu (tanggal_sewa DESC)`,
+  },
+  {
+    title: 'Batasan MVP',
+    description: 'Modul ini hanya membaca data pelanggan. Perubahan profil pelanggan dan penonaktifan akun belum termasuk kontrak MVP.',
+    code: `Tersedia:
+GET /admin/pelanggan
+
+Belum tersedia:
+POST   /admin/pelanggan
+PATCH  /admin/pelanggan/{id}
+DELETE /admin/pelanggan/{id}`,
+  },
+];
+
+function Customers({ customers = [], summary = {} }) {
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('Semua');
+  const [selected, setSelected] = useState(null);
+  const [docsOpen, setDocsOpen] = useState(false);
+
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return customers.filter((customer) => {
+      const matchesFilter = filter === 'Semua' || customer.status === filter;
+      const haystack = `${customer.name} ${customer.phone} ${customer.address}`.toLowerCase();
+      return matchesFilter && haystack.includes(needle);
+    });
+  }, [customers, filter, query]);
+
+  const metrics = [
+    { label: 'Total pelanggan', value: summary.total ?? customers.length, detail: 'Akun pelanggan terdaftar', period: 'Sepanjang waktu', icon: Users, tone: 'accent' },
+    { label: 'Sedang menyewa', value: summary.active ?? 0, detail: 'Penyewaan berjalan', period: 'Status aktif', icon: CalendarDays, tone: 'warm' },
+    { label: 'Pelanggan baru', value: summary.new_this_month ?? 0, detail: 'Bergabung bulan ini', period: 'Bulan ini', icon: Sparkles, tone: 'neutral' },
+    { label: 'Pendapatan selesai', value: formatCurrency(summary.completed_revenue ?? 0), detail: 'Transaksi berstatus selesai', period: 'Sepanjang waktu', icon: Store, tone: 'soft' },
+  ];
+
+  return (
+    <>
+      <section className="page-heading compact customers-heading">
+        <div><p className="eyebrow">Basis pelanggan</p><h1>Pelanggan</h1><p className="heading-subtitle">Lihat profil, kontak, dan riwayat penyewaan pelanggan terdaftar.</p></div>
+        <button className="secondary-button" onClick={() => setDocsOpen(true)}><FileText size={16} /> Dokumentasi kontrak</button>
+      </section>
+
+      <section className="stats-grid customer-metrics">
+        {metrics.map(({ label, value, detail, period, icon: MetricIcon, tone }) => (
+          <article className={`stat-card ${tone}`} key={label}>
+            <div className="stat-card-head"><span className="stat-icon"><MetricIcon size={18} /></span><span className="stat-period">{period}</span></div>
+            <p>{label}</p>
+            <strong>{value}</strong>
+            <div className="stat-detail"><span>{detail}</span></div>
+          </article>
+        ))}
+      </section>
+
+      <section className="catalog-toolbar customers-toolbar">
+        <label className="search-field"><Search size={17} /><input placeholder="Cari nama, telepon, atau alamat..." value={query} onChange={(event) => setQuery(event.target.value)} /></label>
+        <div className="filter-tabs customers-tabs">{CUSTOMER_FILTERS.map((item) => <button key={item} className={filter === item ? 'active' : ''} onClick={() => setFilter(item)}>{item}</button>)}</div>
+      </section>
+
+      <section className="panel customers-panel">
+        <div className="panel-heading"><div><h2>Daftar pelanggan</h2><p>{filtered.length} dari {customers.length} pelanggan ditampilkan.</p></div><span className="settings-badge"><Users size={15} /> {summary.total ?? customers.length} akun</span></div>
+        {filtered.length > 0 ? (
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Pelanggan</th><th>Kontak</th><th>Transaksi</th><th>Total belanja</th><th>Sewa terakhir</th><th>Status</th><th /></tr></thead>
+              <tbody>
+                {filtered.map((customer) => (
+                  <tr key={customer.id}>
+                    <td><div className="customer-cell"><span className="customer-avatar">{getInitials(customer.name)}</span><span><b>{customer.name}</b><small>ID #{customer.id}</small></span></div></td>
+                    <td><div className="customer-contact"><b>{customer.phone}</b><small>{customer.address || 'Alamat belum diisi'}</small></div></td>
+                    <td>{customer.rentalCount}</td>
+                    <td className="money">{formatCurrency(customer.totalSpent)}</td>
+                    <td>{customer.lastRentalAt || '—'}</td>
+                    <td><StatusBadge status={customer.status} /></td>
+                    <td><button className="text-button" onClick={() => setSelected(customer)}>Detail <ArrowUpRight size={14} /></button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="empty-state customers-empty"><Search size={27} /><h2>Pelanggan tidak ditemukan</h2><p>Coba gunakan kata kunci atau filter status yang berbeda.</p></div>
+        )}
+      </section>
+
+      {selected && <CustomerDetailModal customer={selected} onClose={() => setSelected(null)} />}
+
+      {docsOpen && (
+        <ContractDocsModal
+          onClose={() => setDocsOpen(false)}
+          title="Dokumentasi modul Pelanggan"
+          description="Bentuk data dan endpoint yang dipakai halaman ini. Ringkasan dihitung dari transaksi milik pelanggan, bukan data demo."
+          sections={CUSTOMER_CONTRACT}
+          note="Halaman ini hanya membaca data. Kontrak baru perlu ditambahkan ke routes/web.php sebelum dipakai frontend."
+        />
+      )}
+    </>
+  );
+}
+
+function CustomerDetailModal({ customer, onClose }) {
+  return (
+    <div className="modal-scrim" onClick={onClose}>
+      <div className="customer-detail" role="dialog" aria-modal="true" aria-labelledby="customer-detail-title" onClick={(event) => event.stopPropagation()}>
+        <button className="modal-close" onClick={onClose} aria-label="Tutup detail pelanggan"><X size={18} /></button>
+        <div className="customer-detail-head">
+          <span className={`customer-avatar large ${customer.tone}`}>{getInitials(customer.name)}</span>
+          <div><p className="eyebrow">Profil pelanggan</p><h2 id="customer-detail-title">{customer.name}</h2><StatusBadge status={customer.status} /></div>
+        </div>
+        <div className="customer-detail-meta">
+          <div><span>Nomor telepon</span><b>{customer.phone}</b></div>
+          <div><span>Alamat</span><b>{customer.address || '—'}</b></div>
+          <div><span>Bergabung</span><b>{customer.joinedAt || '—'}</b></div>
+          <div><span>Total belanja</span><b>{formatCurrency(customer.totalSpent)}</b></div>
+        </div>
+        <div className="customer-detail-stats">
+          <span><b>{customer.rentalCount}</b>Total transaksi</span>
+          <span><b>{customer.activeRentalCount}</b>Sedang berjalan</span>
+          <span><b>{customer.completedRentalCount}</b>Selesai</span>
+        </div>
+        <div className="customer-detail-history">
+          <div className="customer-detail-history-head"><h3>Riwayat penyewaan</h3><small>{customer.rentals.length} transaksi</small></div>
+          {customer.rentals.length > 0 ? (
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>Kode</th><th>Kamera</th><th>Periode</th><th>Total</th><th>Status</th></tr></thead>
+                <tbody>
+                  {customer.rentals.map((rental) => (
+                    <tr key={rental.id}>
+                      <td className="mono">{rental.id}</td>
+                      <td><div className="customer-cell"><span className={`camera-thumb ${rental.tone}`}><Camera size={17} /></span><b>{rental.product}</b></div></td>
+                      <td>{rental.dates}</td>
+                      <td className="money">{formatCurrency(rental.total)}</td>
+                      <td><StatusBadge status={rental.status} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="customer-detail-empty"><CalendarDays size={22} /><p>Pelanggan ini belum memiliki transaksi penyewaan.</p></div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const INVENTORY_FILTERS = ['Semua', 'Tersedia', 'Terbatas', 'Disewa', 'Tidak tersedia'];
+
+const INVENTORY_CONTRACT = [
+  {
+    title: 'GET /admin/inventaris',
+    description: 'Props Inertia untuk halaman Inventaris. Setiap baris mewakili satu jenis produk beserta jumlah unit yang sedang keluar hari ini.',
+    code: `{
+  "component": "App",
+  "props": {
+    "auth": { "user": { "id": 1, "name": "Admin Sewa Kamera", "role": "admin" } },
+    "inventory": [
+      {
+        "id": 1,
+        "name": "Sony α7 IV",
+        "type": "Mirrorless",
+        "rate": 275000,
+        "stock": 3,
+        "status": "Tersedia",
+        "tone": "sand",
+        "rentedUnits": 1,
+        "availableUnits": 2,
+        "utilization": 33,
+        "nextReturnAt": "27 Oct 2026",
+        "ongoingRentals": [
+          {
+            "id": "SK-261024120000-ABCD",
+            "customer": "Nadia Putri",
+            "dates": "24 Oct 2026 — 27 Oct 2026",
+            "returnAt": "27 Oct 2026",
+            "status": "Sedang disewa"
+          }
+        ]
+      }
+    ],
+    "inventorySummary": {
+      "total_products": 4,
+      "total_units": 7,
+      "rented_units": 1,
+      "available_units": 6,
+      "attention_products": 0,
+      "daily_value": 2025000
+    }
+  }
+}`,
+  },
+  {
+    title: 'PATCH /admin/inventaris/{id}',
+    description: 'Memperbarui stok fisik dan status ketersediaan satu produk. Respons sukses berupa redirect ke halaman Inventaris dengan flash message.',
+    code: `{
+  "stock": 3,
+  "status": "Tersedia"
+}`,
+  },
+  {
+    title: 'Aturan ketersediaan',
+    description: 'Unit dianggap keluar bila transaksi berstatus aktif dan periodenya mencakup hari ini. Stok tidak boleh turun di bawah jumlah unit yang sedang disewa.',
+    code: `status aktif        = menunggu_persetujuan | disetujui | sedang_disewa
+periode berjalan    = tanggal_sewa <= hari ini <= tanggal_kembali
+rentedUnits         = jumlah transaksi aktif pada periode berjalan
+availableUnits      = max(0, stok - rentedUnits)
+attention_products  = produk dengan availableUnits = 0
+daily_value         = SUM(stok × harga_sewa)`,
+  },
+  {
+    title: 'Batasan MVP',
+    description: 'Modul ini membaca inventaris dan memperbarui stok/status. Penghapusan produk, unggah foto, dan pencatatan unit per nomor seri belum termasuk kontrak MVP.',
+    code: `Tersedia:
+GET   /admin/inventaris
+PATCH /admin/inventaris/{id}
+POST  /admin/kamera
+
+Belum tersedia:
+DELETE /admin/inventaris/{id}
+PATCH  /admin/inventaris/{id}/foto`,
+  },
+];
+
+function Inventory({ items = [], summary = {}, flash }) {
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('Semua');
+  const [selected, setSelected] = useState(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [docsOpen, setDocsOpen] = useState(false);
+  const [notice, setNotice] = useState(flash?.success || '');
+
+  useEffect(() => {
+    if (flash?.success) setNotice(flash.success);
+  }, [flash?.success]);
+
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return items.filter((camera) => {
+      const matchesFilter = filter === 'Semua' || camera.status === filter;
+      const haystack = `${camera.name} ${camera.type}`.toLowerCase();
+      return matchesFilter && haystack.includes(needle);
+    });
+  }, [items, filter, query]);
+
+  const metrics = [
+    { label: 'Total unit', value: summary.total_units ?? 0, detail: `${summary.total_products ?? items.length} jenis kamera`, period: 'Seluruh inventaris', icon: Package, tone: 'accent' },
+    { label: 'Unit tersedia', value: summary.available_units ?? 0, detail: 'Siap disewakan hari ini', period: 'Hari ini', icon: CircleCheck, tone: 'soft' },
+    { label: 'Sedang disewa', value: summary.rented_units ?? 0, detail: 'Dari transaksi aktif', period: 'Hari ini', icon: CalendarDays, tone: 'warm' },
+    { label: 'Potensi sewa / hari', value: formatCurrency(summary.daily_value ?? 0), detail: 'Stok × tarif harian', period: 'Estimasi', icon: Sparkles, tone: 'neutral' },
+  ];
+
+  return (
+    <>
+      <section className="page-heading compact inventory-heading">
+        <div><p className="eyebrow">Ketersediaan unit</p><h1>Inventaris</h1><p className="heading-subtitle">Pantau stok fisik, unit yang sedang keluar, dan status ketersediaan kamera.</p></div>
+        <div className="inventory-heading-actions">
+          <button className="secondary-button" onClick={() => setDocsOpen(true)}><FileText size={16} /> Dokumentasi kontrak</button>
+          <button className="primary-button" onClick={() => setAddOpen(true)}><Plus size={17} /> Tambah kamera</button>
+        </div>
+      </section>
+
+      {notice && <div className="settings-alert" role="status"><CircleCheck size={17} /><span>{notice}</span><button type="button" onClick={() => setNotice('')} aria-label="Tutup notifikasi"><X size={15} /></button></div>}
+
+      <section className="stats-grid inventory-metrics">
+        {metrics.map(({ label, value, detail, period, icon: MetricIcon, tone }) => (
+          <article className={`stat-card ${tone}`} key={label}>
+            <div className="stat-card-head"><span className="stat-icon"><MetricIcon size={18} /></span><span className="stat-period">{period}</span></div>
+            <p>{label}</p>
+            <strong>{value}</strong>
+            <div className="stat-detail"><span>{detail}</span></div>
+          </article>
+        ))}
+      </section>
+
+      <section className="catalog-toolbar inventory-toolbar">
+        <label className="search-field"><Search size={17} /><input placeholder="Cari nama atau jenis kamera..." value={query} onChange={(event) => setQuery(event.target.value)} /></label>
+        <div className="filter-tabs inventory-tabs">{INVENTORY_FILTERS.map((item) => <button key={item} className={filter === item ? 'active' : ''} onClick={() => setFilter(item)}>{item}</button>)}</div>
+      </section>
+
+      <section className="panel inventory-panel">
+        <div className="panel-heading"><div><h2>Stok kamera</h2><p>{filtered.length} dari {items.length} jenis kamera ditampilkan.</p></div><span className="settings-badge"><Package size={15} /> {summary.attention_products ?? 0} perlu perhatian</span></div>
+        {filtered.length > 0 ? (
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Kamera</th><th>Jenis</th><th>Tarif / hari</th><th>Stok</th><th>Disewa</th><th>Tersedia</th><th>Status</th><th /></tr></thead>
+              <tbody>
+                {filtered.map((camera) => (
+                  <tr key={camera.id}>
+                    <td><div className="customer-cell"><span className={`camera-thumb ${camera.tone}`}><Camera size={17} /></span><span><b>{camera.name}</b><small>ID #{camera.id}</small></span></div></td>
+                    <td>{camera.type}</td>
+                    <td className="money">{formatCurrency(camera.rate)}</td>
+                    <td>{camera.stock}</td>
+                    <td>{camera.rentedUnits}</td>
+                    <td><b className={`inventory-available ${camera.availableUnits === 0 ? 'empty' : ''}`}>{camera.availableUnits}</b></td>
+                    <td><StatusBadge status={camera.status} /></td>
+                    <td><button className="text-button" onClick={() => setSelected(camera)}>Kelola <ArrowUpRight size={14} /></button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="empty-state customers-empty"><Search size={27} /><h2>Kamera tidak ditemukan</h2><p>Coba gunakan kata kunci atau filter status yang berbeda.</p></div>
+        )}
+      </section>
+
+      {selected && <InventoryManageModal camera={selected} onClose={() => setSelected(null)} />}
+      {addOpen && <AddCameraModal onClose={() => setAddOpen(false)} />}
+
+      {docsOpen && (
+        <ContractDocsModal
+          onClose={() => setDocsOpen(false)}
+          title="Dokumentasi modul Inventaris"
+          description="Bentuk data dan endpoint yang dipakai halaman ini. Ketersediaan dihitung dari transaksi aktif, bukan dari data demo frontend."
+          sections={INVENTORY_CONTRACT}
+          note="Validasi gagal mengembalikan status 422 dengan key error sesuai nama field, sehingga form kelola inventaris dapat menampilkan pesan yang tepat."
+        />
+      )}
+    </>
+  );
+}
+
+function InventoryManageModal({ camera, onClose }) {
+  const [values, setValues] = useState({ stock: String(camera.stock), status: camera.status });
+  const [errors, setErrors] = useState({});
+  const [processing, setProcessing] = useState(false);
+  const stock = Number(values.stock);
+  const available = Number.isNaN(stock) ? camera.availableUnits : Math.max(0, stock - camera.rentedUnits);
+  const update = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }));
+  const submit = (event) => {
+    event.preventDefault();
+    if (!values.stock.trim() || Number.isNaN(stock) || stock < 0) {
+      setErrors({ stock: 'Stok wajib diisi dengan angka 0 atau lebih.' });
+      return;
+    }
+    setErrors({});
+    setProcessing(true);
+    router.patch(`/admin/inventaris/${camera.id}`, { stock, status: values.status }, {
+      preserveScroll: true,
+      preserveState: true,
+      onSuccess: () => onClose(),
+      onError: (serverErrors) => setErrors(serverErrors),
+      onFinish: () => setProcessing(false),
+    });
+  };
+
+  return (
+    <div className="modal-scrim" onClick={onClose}>
+      <div className="camera-form-modal inventory-manage" role="dialog" aria-modal="true" aria-labelledby="inventory-manage-title" onClick={(event) => event.stopPropagation()}>
+        <button className="modal-close" onClick={onClose} aria-label="Tutup"><X size={18} /></button>
+        <div className="form-modal-head"><p className="eyebrow">Kelola inventaris</p><h2 id="inventory-manage-title">{camera.name}</h2><p>Perbarui jumlah unit fisik dan status ketersediaan {camera.type.toLowerCase()}.</p></div>
+        <div className="inventory-manage-stats">
+          <span><small>Stok fisik</small><b>{camera.stock}</b></span>
+          <span><small>Sedang disewa</small><b>{camera.rentedUnits}</b></span>
+          <span><small>Tersedia</small><b>{available}</b></span>
+        </div>
+        {camera.ongoingRentals.length > 0 ? (
+          <div className="inventory-manage-rentals">
+            <div className="inventory-manage-rentals-head"><h3>Unit sedang keluar</h3><small>{camera.ongoingRentals.length} transaksi aktif</small></div>
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>Kode</th><th>Pelanggan</th><th>Periode</th><th>Kembali</th><th>Status</th></tr></thead>
+                <tbody>{camera.ongoingRentals.map((rental) => <tr key={rental.id}><td className="mono">{rental.id}</td><td>{rental.customer}</td><td>{rental.dates}</td><td>{rental.returnAt}</td><td><StatusBadge status={rental.status} /></td></tr>)}</tbody>
+              </table>
+            </div>
+            <p className="inventory-manage-note">Stok tidak dapat dikurangi di bawah {camera.rentedUnits} unit selama transaksi ini berjalan.</p>
+          </div>
+        ) : (
+          <p className="inventory-manage-note">Seluruh unit sedang berada di tempat dan siap disewakan.</p>
+        )}
+        <form className="camera-form" onSubmit={submit} noValidate>
+          <div className="camera-form-row">
+            <label className={`form-field ${errors.stock ? 'has-error' : ''}`}><span>Stok unit</span><input type="number" min={camera.rentedUnits} max="999" step="1" inputMode="numeric" value={values.stock} onChange={update('stock')} autoFocus />{errors.stock && <small className="form-error">{errors.stock}</small>}</label>
+            <label className={`form-field ${errors.status ? 'has-error' : ''}`}><span>Status ketersediaan</span><select value={values.status} onChange={update('status')}>{['Tersedia', 'Terbatas', 'Disewa', 'Tidak tersedia'].map((status) => <option key={status} value={status}>{status}</option>)}</select>{errors.status && <small className="form-error">{errors.status}</small>}</label>
+          </div>
+          <div className="camera-form-actions"><button type="button" className="secondary-button" onClick={onClose}>Batal</button><button type="submit" className="primary-button" disabled={processing}><Save size={16} /> {processing ? 'Menyimpan...' : 'Simpan perubahan'}</button></div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+const PROFILE_TABS = [
+  { id: 'profil', label: 'Profil saya', icon: UserRound },
+  { id: 'keamanan', label: 'Keamanan', icon: LockKeyhole },
+];
+
+const PROFILE_CONTRACT = [
+  {
+    title: 'GET /pelanggan/profil',
+    description: 'Props Inertia untuk halaman Profil saya. Ringkasan dihitung dari transaksi milik pelanggan yang sedang masuk, bukan dari data demo frontend.',
+    code: `{
+  "component": "App",
+  "props": {
+    "auth": {
+      "user": {
+        "id": 2,
+        "name": "Nadia Putri",
+        "phone": "081298765432",
+        "address": "Jl. Melati No. 10",
+        "role": "customer"
+      }
+    },
+    "profile": {
+      "id": 2,
+      "name": "Nadia Putri",
+      "phone": "081298765432",
+      "address": "Jl. Melati No. 10",
+      "joinedAt": "02 Oct 2026",
+      "role": "Pelanggan"
+    },
+    "profileSummary": {
+      "rental_count": 2,
+      "active_rental_count": 1,
+      "completed_rental_count": 1,
+      "total_spent": 675000,
+      "last_rental_at": "24 Oct 2026",
+      "favorite_camera": "Sony α7 IV"
+    },
+    "rentals": [
+      {
+        "id": "SK-261024120000-ABCD",
+        "product": "Sony α7 IV",
+        "dates": "24 Oct 2026 — 27 Oct 2026",
+        "total": 1100000,
+        "status": "Menunggu persetujuan",
+        "tone": "sand"
+      }
+    ],
+    "flash": { "success": null, "error": null }
+  }
+}`,
+  },
+  {
+    title: 'PATCH /pelanggan/profil',
+    description: 'Memperbarui identitas pelanggan yang sedang masuk. Spasi dan tanda hubung pada nomor telepon dibuang, nomor harus unik, dan harus mengikuti format nomor Indonesia.',
+    code: `{
+  "name": "Nadia Putri",
+  "phone": "081298765432",
+  "address": "Jl. Melati No. 10"
+}`,
+  },
+  {
+    title: 'PUT /pelanggan/profil/password',
+    description: 'Mengganti password pelanggan. Password saat ini diverifikasi terhadap kolom password_hash di tabel pelanggan.',
+    code: `{
+  "current_password": "password-lama",
+  "password": "password-baru",
+  "password_confirmation": "password-baru"
+}`,
+  },
+  {
+    title: 'Aturan agregasi',
+    description: 'Ringkasan profil hanya memakai transaksi milik pelanggan yang sedang masuk.',
+    code: `rental_count           = jumlah seluruh transaksi pelanggan
+active_rental_count    = transaksi berstatus menunggu_persetujuan | disetujui | sedang_disewa
+completed_rental_count = transaksi berstatus selesai
+total_spent            = SUM(total_biaya) transaksi berstatus selesai
+last_rental_at         = tanggal_sewa transaksi terbaru
+favorite_camera        = kamera yang paling sering disewa`,
+  },
+  {
+    title: 'Batasan MVP',
+    description: 'Modul ini memperbarui identitas dan password pelanggan. Perubahan role, penonaktifan akun, dan unggah foto profil belum termasuk kontrak MVP.',
+    code: `Tersedia:
+GET   /pelanggan/profil
+PATCH /pelanggan/profil
+PUT   /pelanggan/profil/password
+
+Belum tersedia:
+DELETE /pelanggan/profil
+PATCH  /pelanggan/profil/foto`,
+  },
+];
+
+function CustomerProfile({ user, profile, summary = {}, rentals = [], flash }) {
+  const [activeTab, setActiveTab] = useState('profil');
+  const [values, setValues] = useState({ name: profile?.name || user?.name || '', phone: profile?.phone || user?.phone || '', address: profile?.address || user?.address || '' });
+  const [passwords, setPasswords] = useState({ current_password: '', password: '', password_confirmation: '' });
+  const [profileErrors, setProfileErrors] = useState({});
+  const [passwordErrors, setPasswordErrors] = useState({});
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [notice, setNotice] = useState(flash?.success || '');
+  const [errorNotice, setErrorNotice] = useState(flash?.error || '');
+  const [docsOpen, setDocsOpen] = useState(false);
+
+  useEffect(() => {
+    setValues({ name: profile?.name || user?.name || '', phone: profile?.phone || user?.phone || '', address: profile?.address || user?.address || '' });
+  }, [profile?.name, profile?.phone, profile?.address, user?.name, user?.phone, user?.address]);
+
+  useEffect(() => {
+    if (flash?.success) setNotice(flash.success);
+    if (flash?.error) setErrorNotice(flash.error);
+  }, [flash?.success, flash?.error]);
+
+  const accountName = profile?.name || user?.name || 'Pelanggan';
+  const accountPhone = profile?.phone || user?.phone || '';
+  const joinedAt = profile?.joinedAt || '';
+  const accountId = profile?.id ?? user?.id;
+
+  const metrics = [
+    { label: 'Total penyewaan', value: summary.rental_count ?? rentals.length, detail: 'Seluruh transaksi', period: 'Sejak bergabung', icon: CalendarDays, tone: 'accent' },
+    { label: 'Sewa aktif', value: summary.active_rental_count ?? 0, detail: 'Diproses atau sedang berjalan', period: 'Status aktif', icon: Clock3, tone: 'warm' },
+    { label: 'Sewa selesai', value: summary.completed_rental_count ?? 0, detail: 'Transaksi berstatus selesai', period: 'Sepanjang waktu', icon: CircleCheck, tone: 'soft' },
+    { label: 'Total pengeluaran', value: formatCurrency(summary.total_spent ?? 0), detail: summary.favorite_camera ? `Kamera favorit: ${summary.favorite_camera}` : 'Belum ada transaksi selesai', period: 'Transaksi selesai', icon: Sparkles, tone: 'neutral' },
+  ];
+
+  const updateProfile = (field) => (event) => {
+    setValues((current) => ({ ...current, [field]: event.target.value }));
+    setProfileErrors((current) => ({ ...current, [field]: undefined }));
+  };
+
+  const updatePassword = (field) => (event) => {
+    setPasswords((current) => ({ ...current, [field]: event.target.value }));
+    setPasswordErrors((current) => ({ ...current, [field]: undefined }));
+  };
+
+  const saveProfile = (event) => {
+    event.preventDefault();
+    const nextErrors = {};
+    if (!values.name.trim()) nextErrors.name = 'Nama lengkap wajib diisi.';
+    if (!values.phone.trim()) nextErrors.phone = 'Nomor telepon wajib diisi.';
+    if (!values.address.trim()) nextErrors.address = 'Alamat wajib diisi.';
+    setProfileErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
+    setNotice('');
+    setErrorNotice('');
+    setSavingProfile(true);
+    router.patch('/pelanggan/profil', values, {
+      preserveScroll: true,
+      onSuccess: () => {
+        setNotice('Profil kamu berhasil diperbarui.');
+        setErrorNotice('');
+      },
+      onError: (serverErrors) => setProfileErrors(serverErrors),
+      onFinish: () => setSavingProfile(false),
+    });
+  };
+
+  const savePassword = (event) => {
+    event.preventDefault();
+    const nextErrors = {};
+    if (!passwords.current_password) nextErrors.current_password = 'Password saat ini wajib diisi.';
+    if (!passwords.password) nextErrors.password = 'Password baru wajib diisi.';
+    else if (passwords.password.length < 8) nextErrors.password = 'Password baru minimal 8 karakter.';
+    if (passwords.password !== passwords.password_confirmation) nextErrors.password_confirmation = 'Konfirmasi password baru harus sama.';
+    setPasswordErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
+    setNotice('');
+    setErrorNotice('');
+    setSavingPassword(true);
+    router.put('/pelanggan/profil/password', passwords, {
+      preserveScroll: true,
+      onSuccess: () => {
+        setPasswords({ current_password: '', password: '', password_confirmation: '' });
+        setNotice('Password berhasil diperbarui.');
+        setErrorNotice('');
+      },
+      onError: (serverErrors) => setPasswordErrors(serverErrors),
+      onFinish: () => setSavingPassword(false),
+    });
+  };
+
+  const handleTabKeyDown = (event) => {
+    const tabs = Array.from(event.currentTarget.querySelectorAll('[role="tab"]'));
+    const currentIndex = tabs.indexOf(document.activeElement);
+    if (currentIndex === -1) return;
+    let nextIndex = currentIndex;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabs.length;
+    else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    else if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = tabs.length - 1;
+    else return;
+    event.preventDefault();
+    tabs[nextIndex].focus();
+    setActiveTab(PROFILE_TABS[nextIndex].id);
+  };
+
+  return (
+    <>
+      <section className="page-heading compact settings-heading profile-heading">
+        <div>
+          <p className="eyebrow">Akun pelanggan</p>
+          <h1>Profil saya</h1>
+          <p className="heading-subtitle">Kelola identitas, kontak, dan keamanan akses akun kamu.</p>
+        </div>
+        <button className="secondary-button" onClick={() => setDocsOpen(true)}><FileText size={16} /> Dokumentasi kontrak</button>
+      </section>
+
+      {notice && <div className="settings-alert" role="status"><CircleCheck size={17} /><span>{notice}</span><button type="button" onClick={() => setNotice('')} aria-label="Tutup notifikasi"><X size={15} /></button></div>}
+      {errorNotice && <div className="settings-alert is-error" role="alert"><AlertCircle size={17} /><span>{errorNotice}</span><button type="button" onClick={() => setErrorNotice('')} aria-label="Tutup notifikasi"><X size={15} /></button></div>}
+
+      <section className="panel profile-identity">
+        <span className="profile-identity-avatar">{getInitials(accountName)}</span>
+        <div className="profile-identity-copy">
+          <p className="eyebrow">Pelanggan</p>
+          <h2>{accountName}</h2>
+          <div className="profile-identity-meta">
+            {accountPhone && <span><Phone size={13} /> {accountPhone}</span>}
+            {joinedAt && <span><CalendarDays size={13} /> Bergabung {joinedAt}</span>}
+            {accountId && <span><UserRound size={13} /> ID #{accountId}</span>}
+          </div>
+        </div>
+        <button className="secondary-button" onClick={() => router.get('/pelanggan/sewa')}><CalendarDays size={16} /> Lihat sewa saya</button>
+      </section>
+
+      <section className="stats-grid profile-metrics">
+        {metrics.map(({ label, value, detail, period, icon: MetricIcon, tone }) => (
+          <article className={`stat-card ${tone}`} key={label}>
+            <div className="stat-card-head"><span className="stat-icon"><MetricIcon size={18} /></span><span className="stat-period">{period}</span></div>
+            <p>{label}</p>
+            <strong>{value}</strong>
+            <div className="stat-detail"><span>{detail}</span></div>
+          </article>
+        ))}
+      </section>
+
+      <section className="settings-shell profile-shell">
+        <nav className="settings-nav" role="tablist" aria-label="Bagian profil" aria-orientation="vertical" onKeyDown={handleTabKeyDown}>
+          {PROFILE_TABS.map(({ id, label, icon: TabIcon }) => (
+            <button
+              key={id}
+              role="tab"
+              id={`profile-tab-${id}`}
+              aria-selected={activeTab === id}
+              aria-controls={`profile-panel-${id}`}
+              tabIndex={activeTab === id ? 0 : -1}
+              className={`settings-nav-item ${activeTab === id ? 'active' : ''}`}
+              onClick={() => setActiveTab(id)}
+            >
+              <TabIcon size={17} />
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
+
+        <div className="settings-panel panel" role="tabpanel" id={`profile-panel-${activeTab}`} aria-labelledby={`profile-tab-${activeTab}`}>
+          {activeTab === 'profil' && (
+            <>
+              <div className="settings-panel-head">
+                <div><p className="eyebrow">Identitas</p><h2>Data profil</h2><p>Nama dan kontak ini dipakai admin untuk menghubungi kamu terkait penyewaan.</p></div>
+                <span className="settings-badge"><UserRound size={15} /> Pelanggan</span>
+              </div>
+              <form className="settings-form" onSubmit={saveProfile} noValidate>
+                <div className="settings-form-grid">
+                  <label className={`form-field ${profileErrors.name ? 'has-error' : ''}`}>
+                    <span>Nama lengkap</span>
+                    <input value={values.name} onChange={updateProfile('name')} placeholder="Nama lengkap kamu" autoComplete="name" />
+                    {profileErrors.name && <small className="form-error">{profileErrors.name}</small>}
+                  </label>
+                  <label className={`form-field ${profileErrors.phone ? 'has-error' : ''}`}>
+                    <span>Nomor telepon</span>
+                    <input value={values.phone} onChange={updateProfile('phone')} placeholder="Contoh: 081298765432" inputMode="tel" autoComplete="tel" />
+                    {profileErrors.phone && <small className="form-error">{profileErrors.phone}</small>}
+                  </label>
+                  <label className={`form-field settings-field-full ${profileErrors.address ? 'has-error' : ''}`}>
+                    <span>Alamat</span>
+                    <textarea rows="3" value={values.address} onChange={updateProfile('address')} placeholder="Alamat lengkap kamu" autoComplete="street-address" />
+                    {profileErrors.address && <small className="form-error">{profileErrors.address}</small>}
+                  </label>
+                </div>
+                <div className="settings-form-actions">
+                  <span className="settings-hint">Nomor telepon dipakai untuk masuk ke akunmu.</span>
+                  <button type="submit" className="primary-button" disabled={savingProfile}><Save size={16} /> {savingProfile ? 'Menyimpan...' : 'Simpan profil'}</button>
+                </div>
+              </form>
+            </>
+          )}
+
+          {activeTab === 'keamanan' && (
+            <>
+              <div className="settings-panel-head">
+                <div><p className="eyebrow">Akun</p><h2>Keamanan</h2><p>Ganti password secara berkala agar akunmu tetap aman.</p></div>
+                <span className="settings-badge"><LockKeyhole size={15} /> Password</span>
+              </div>
+              <form className="settings-form" onSubmit={savePassword} noValidate>
+                <div className="settings-form-grid">
+                  <SettingsPasswordField id="profile-current-password" label="Password saat ini" value={passwords.current_password} onChange={updatePassword('current_password')} error={passwordErrors.current_password} autoComplete="current-password" />
+                  <label className={`form-field ${passwordErrors.password ? 'has-error' : ''}`}>
+                    <span>Password baru</span>
+                    <input type="password" value={passwords.password} onChange={updatePassword('password')} placeholder="Minimal 8 karakter" autoComplete="new-password" />
+                    {passwordErrors.password && <small className="form-error">{passwordErrors.password}</small>}
+                  </label>
+                  <label className={`form-field ${passwordErrors.password_confirmation ? 'has-error' : ''}`}>
+                    <span>Konfirmasi password baru</span>
+                    <input type="password" value={passwords.password_confirmation} onChange={updatePassword('password_confirmation')} placeholder="Ulangi password baru" autoComplete="new-password" />
+                    {passwordErrors.password_confirmation && <small className="form-error">{passwordErrors.password_confirmation}</small>}
+                  </label>
+                </div>
+                <div className="settings-note"><b>Catatan</b><span>Setelah password diperbarui, sesi saat ini tetap aktif dan sesi lain perlu masuk kembali.</span></div>
+                <div className="settings-form-actions">
+                  <span className="settings-hint">Gunakan kombinasi yang tidak dipakai di layanan lain.</span>
+                  <button type="submit" className="primary-button" disabled={savingPassword}><Save size={16} /> {savingPassword ? 'Menyimpan...' : 'Perbarui password'}</button>
+                </div>
+              </form>
+            </>
+          )}
+        </div>
+      </section>
+
+      <section className="panel profile-history">
+        <div className="panel-heading">
+          <div><h2>Riwayat penyewaan</h2><p>{summary.last_rental_at ? `Sewa terakhir ${summary.last_rental_at}.` : 'Belum ada transaksi tercatat.'}</p></div>
+          <button className="text-button" onClick={() => router.get('/pelanggan/sewa')}>Lihat semua <ArrowUpRight size={15} /></button>
+        </div>
+        {rentals.length > 0 ? (
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Kode</th><th>Kamera</th><th>Periode</th><th>Total</th><th>Status</th></tr></thead>
+              <tbody>
+                {rentals.slice(0, 5).map((rental) => (
+                  <tr key={rental.id}>
+                    <td className="mono">{rental.id}</td>
+                    <td><div className="customer-cell"><span className={`camera-thumb ${rental.tone}`}><Camera size={17} /></span><b>{rental.product}</b></div></td>
+                    <td>{rental.dates}</td>
+                    <td className="money">{formatCurrency(rental.total)}</td>
+                    <td><StatusBadge status={rental.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="empty-state profile-empty"><CalendarDays size={26} /><h2>Belum ada penyewaan</h2><p>Ajukan sewa pertamamu lewat katalog kamera.</p></div>
+        )}
+      </section>
+
+      {docsOpen && (
+        <ContractDocsModal
+          onClose={() => setDocsOpen(false)}
+          title="Dokumentasi modul Profil saya"
+          description="Bentuk data dan endpoint yang dipakai halaman ini. Ringkasan dihitung dari transaksi milik pelanggan yang sedang masuk."
+          sections={PROFILE_CONTRACT}
+          note="Validasi gagal mengembalikan status 422 dengan key error sesuai nama field, sehingga form dapat menampilkan pesan yang tepat."
+        />
+      )}
     </>
   );
 }
@@ -992,6 +2077,116 @@ function AuthPage({ mode, errors = {} }) {
   );
 }
 
+function CameraDetailModal({ camera, viewer = 'customer', onClose }) {
+  const [step, setStep] = useState('detail');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [errors, setErrors] = useState({});
+  const [processing, setProcessing] = useState(false);
+  const [booking, setBooking] = useState(null);
+  const today = toDateInputValue();
+  const duration = rentalDuration(startDate, endDate);
+  const total = duration * Number(camera.rate || 0);
+  const unavailable = camera.status === 'Tidak tersedia';
+
+  const openBooking = () => {
+    if (viewer === 'guest') {
+      router.get('/login');
+      return;
+    }
+    setErrors({});
+    setStep('booking');
+  };
+
+  const updateStartDate = (event) => {
+    const value = event.target.value;
+    setStartDate(value);
+    setErrors((current) => ({ ...current, start_date: undefined }));
+    if (endDate && value && endDate < value) setEndDate(value);
+  };
+
+  const updateEndDate = (event) => {
+    setEndDate(event.target.value);
+    setErrors((current) => ({ ...current, end_date: undefined }));
+  };
+
+  const submit = (event) => {
+    event.preventDefault();
+    const nextErrors = {};
+    if (!startDate) nextErrors.start_date = 'Pilih tanggal mulai sewa.';
+    if (!endDate) nextErrors.end_date = 'Pilih tanggal kembali.';
+    if (startDate && endDate && endDate < startDate) nextErrors.end_date = 'Tanggal kembali tidak boleh sebelum tanggal mulai.';
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
+      return;
+    }
+    router.post('/sewa', { camera_id: camera.id, start_date: startDate, end_date: endDate }, {
+      preserveScroll: true,
+      preserveState: true,
+      onStart: () => {
+        setProcessing(true);
+        setErrors({});
+      },
+      onSuccess: () => {
+        setBooking({ startDate, endDate, duration, total });
+        setStep('success');
+      },
+      onError: (serverErrors) => setErrors(serverErrors),
+      onFinish: () => setProcessing(false),
+    });
+  };
+
+  return (
+    <div className="modal-scrim" onClick={onClose}>
+      <div className="camera-modal" role="dialog" aria-modal="true" aria-labelledby="camera-modal-title" onClick={(event) => event.stopPropagation()}>
+        <button className="modal-close" onClick={onClose} aria-label="Tutup"><X size={18} /></button>
+        <div className={`modal-visual ${camera.tone || 'sand'}`}><Camera size={92} strokeWidth={1.05} /><span>PHOTO / DEMO</span></div>
+        <div className="modal-copy">
+          {step === 'success' ? (
+            <div className="booking-success">
+              <CircleCheck size={34} />
+              <h3>Pengajuan sewa terkirim</h3>
+              <p>{camera.name}<br />{formatDateInput(booking.startDate)} — {formatDateInput(booking.endDate)}</p>
+              <div className="booking-summary"><span><small>Durasi</small><b>{booking.duration} hari</b></span><span><small>Total biaya</small><b>{formatCurrency(booking.total)}</b></span></div>
+              <p className="booking-hint">Pengajuan kamu berstatus <b>Menunggu persetujuan</b>. Admin akan menghubungi nomor terdaftar setelah transaksi ditinjau.</p>
+              <button className="primary-button full-width" onClick={() => router.get('/pelanggan')}>Lihat penyewaan saya <ArrowUpRight size={15} /></button>
+              <button className="secondary-button full-width" onClick={onClose}>Tutup</button>
+            </div>
+          ) : step === 'booking' ? (
+            <>
+              <p className="eyebrow">{camera.type}</p>
+              <h2 id="camera-modal-title">{camera.name}</h2>
+              <p className="heading-subtitle">Pilih tanggal sewa dan kembali. Ketersediaan akan dicek saat pengajuan dikirim.</p>
+              <form className="booking-form" onSubmit={submit} noValidate>
+                <div className="booking-dates">
+                  <label className={`form-field ${errors.start_date ? 'has-error' : ''}`}><span>Tanggal mulai</span><input type="date" min={today} value={startDate} onChange={updateStartDate} />{errors.start_date && <small className="form-error">{errors.start_date}</small>}</label>
+                  <label className={`form-field ${errors.end_date ? 'has-error' : ''}`}><span>Tanggal kembali</span><input type="date" min={startDate || today} value={endDate} onChange={updateEndDate} />{errors.end_date && <small className="form-error">{errors.end_date}</small>}</label>
+                </div>
+                <div className="booking-summary"><span><small>Durasi sewa</small><b>{duration ? `${duration} hari` : '—'}</b></span><span><small>Total estimasi</small><b>{duration ? formatCurrency(total) : '—'}</b></span></div>
+                <p className="booking-hint">Tarif {formatCurrency(camera.rate)} / hari. Tanggal mulai dan kembali dihitung inklusif.</p>
+                {errors.camera_id && <p className="form-error">{errors.camera_id}</p>}
+                <div className="booking-actions"><button type="button" className="secondary-button" onClick={() => setStep('detail')} disabled={processing}>Kembali</button><button type="submit" className="primary-button" disabled={processing}>{processing ? 'Mengirim...' : 'Ajukan sewa'}</button></div>
+              </form>
+            </>
+          ) : (
+            <>
+              <p className="eyebrow">{camera.type}</p>
+              <h2 id="camera-modal-title">{camera.name}</h2>
+              <p className="heading-subtitle">Kamera ini siap dipesan untuk kebutuhan produksi dan konten kamu.</p>
+              <div className="modal-rate"><b>{formatCurrency(camera.rate)}</b><span>/ hari</span></div>
+              {viewer === 'admin' ? (
+                <button className="secondary-button full-width" onClick={onClose}>Tutup</button>
+              ) : (
+                <button className="primary-button full-width" onClick={openBooking} disabled={unavailable}><CalendarDays size={17} /> {unavailable ? 'Kamera tidak tersedia' : viewer === 'guest' ? 'Masuk untuk menyewa' : 'Pilih tanggal sewa'}</button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App(props) {
   if (props.authPage) return <AuthPage mode={props.authPage} errors={props.errors} />;
   const currentUser = props.customer || props.auth?.user;
@@ -1016,6 +2211,8 @@ function App(props) {
   const [role, setRole] = useState(() => getRole());
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedCamera, setSelectedCamera] = useState(null);
+  const viewer = active === 'public-home' ? (currentUser ? (currentUser.role === 'admin' ? 'admin' : 'customer') : 'guest') : role;
+  const activeCustomerRentals = (props.rentals || []).filter((rental) => ['Menunggu persetujuan', 'Disetujui', 'Sedang disewa'].includes(rental.status)).length;
   const routeForPage = (page) => {
     const routes = {
       overview: '/admin',
@@ -1040,6 +2237,17 @@ function App(props) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
+    if (page === 'customers' || page === 'inventory' || page === 'customer-profile' || page === 'customer-rentals') {
+      setSidebarOpen(false);
+      const targets = {
+        customers: '/admin/pelanggan',
+        inventory: '/admin/inventaris',
+        'customer-profile': '/pelanggan/profil',
+        'customer-rentals': '/pelanggan/sewa',
+      };
+      router.get(targets[page]);
+      return;
+    }
     const nextRole = page.startsWith('customer-') ? 'customer' : 'admin';
     const nextPage = nextRole === 'customer' && page === 'customer-catalog' ? 'customer-catalog' : page;
     window.history.pushState({ page: nextPage }, '', routeForPage(page));
@@ -1058,20 +2266,22 @@ function App(props) {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
-  let content = active === 'public-home' ? <PublicHome onNavigate={navigate} onSelectCamera={setSelectedCamera} /> : role === 'customer' ? <CustomerHome user={currentUser} rentals={props.rentals} onSelectCamera={setSelectedCamera} onNavigate={navigate} /> : <Overview onNavigate={navigate} />;
-  if (role === 'customer' && active === 'customer-catalog') content = <CustomerCatalog onSelectCamera={setSelectedCamera} />;
-  if (role === 'customer' && active === 'customer-rentals') content = <Placeholder title="Sewa saya" />;
-  if (role === 'customer' && active === 'customer-profile') content = <Placeholder title="Profil saya" />;
+  let content = active === 'public-home' ? <PublicHome onNavigate={navigate} onSelectCamera={setSelectedCamera} /> : role === 'customer' ? <CustomerHome user={currentUser} rentals={props.rentals} cameras={props.cameras} onSelectCamera={setSelectedCamera} onNavigate={navigate} /> : <Overview user={currentUser} onNavigate={navigate} />;
+  if (role === 'customer' && active === 'customer-catalog') content = <CustomerCatalog onSelectCamera={setSelectedCamera} cameras={props.cameras} />;
+  if (role === 'customer' && active === 'customer-rentals') content = <CustomerRentals rentals={props.rentals} summary={props.customerRentalSummary} onNavigate={navigate} />;
+  if (role === 'customer' && active === 'customer-profile') content = <CustomerProfile user={currentUser} profile={props.profile} summary={props.profileSummary} rentals={props.rentals || []} flash={props.flash} />;
   if (role === 'admin' && active === 'catalog') content = <Catalog onSelectCamera={setSelectedCamera} cameras={props.cameras} canManage />;
   if (active === 'rentals') content = <Rentals />;
+  if (role === 'admin' && active === 'customers') content = <Customers customers={props.customers} summary={props.customerSummary} />;
+  if (role === 'admin' && active === 'inventory') content = <Inventory items={props.inventory} summary={props.inventorySummary} flash={props.flash} />;
   if (role === 'admin' && active === 'settings') content = <Settings user={currentUser} settings={props.settings} flash={props.flash} />;
-  if (['customers', 'inventory', 'help'].includes(active)) content = <Placeholder title={active === 'customers' ? 'Pelanggan' : active === 'inventory' ? 'Inventaris' : 'Pusat bantuan'} />;
+  if (['help'].includes(active)) content = <Placeholder title="Pusat bantuan" />;
   return (
     <div className="app-shell">
-      {active !== 'public-home' && <Sidebar user={currentUser} active={active} onChange={navigate} open={sidebarOpen} onClose={() => setSidebarOpen(false)} role={role} />}
+      {active !== 'public-home' && <Sidebar user={currentUser} active={active} onChange={navigate} open={sidebarOpen} onClose={() => setSidebarOpen(false)} role={role} rentalCount={activeCustomerRentals} />}
       {sidebarOpen && <button className="sidebar-scrim" aria-label="Tutup navigasi" onClick={() => setSidebarOpen(false)} />}
-      <main className={active === 'public-home' ? 'public-main' : 'main-content'}>{active !== 'public-home' && <Topbar role={role} active={active} onMenu={() => setSidebarOpen(true)} />}<div className={active === 'public-home' ? '' : 'page-content'}>{content}</div>{active !== 'public-home' && <footer className="app-footer">© 2026 Kamera Kita <span>•</span> Workspace operasional</footer>}</main>
-      {selectedCamera && <div className="modal-scrim" onClick={() => setSelectedCamera(null)}><div className="camera-modal" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setSelectedCamera(null)}><X size={18} /></button><div className={`modal-visual ${selectedCamera.tone}`}><Camera size={92} strokeWidth={1.05} /><span>PHOTO / DEMO</span></div><div className="modal-copy"><p className="eyebrow">{selectedCamera.type}</p><h2>{selectedCamera.name}</h2><p className="heading-subtitle">Kamera ini siap dipesan untuk kebutuhan produksi dan konten kamu.</p><div className="modal-rate"><b>{formatCurrency(selectedCamera.rate)}</b><span>/ hari</span></div><button className="primary-button full-width" onClick={() => setSelectedCamera(null)}><CalendarDays size={17} /> Pilih tanggal sewa</button></div></div></div>}
+      <main className={active === 'public-home' ? 'public-main' : 'main-content'}>{active !== 'public-home' && <Topbar role={role} active={active} user={currentUser} onMenu={() => setSidebarOpen(true)} />}<div className={active === 'public-home' ? '' : 'page-content'}>{content}</div>{active !== 'public-home' && <footer className="app-footer">© 2026 Kamera Kita <span>•</span> Workspace operasional</footer>}</main>
+      {selectedCamera && <CameraDetailModal camera={selectedCamera} viewer={viewer} onClose={() => setSelectedCamera(null)} />}
     </div>
   );
 }
