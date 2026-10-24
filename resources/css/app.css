@@ -43,6 +43,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid #9bc8ad; outline-
 .brand strong { font: 800 20px/1 'Manrope', sans-serif; letter-spacing: -.07em; }
 .brand em { color: #9dc8a5; font: 500 11px/1 'Manrope', sans-serif; font-style: normal; letter-spacing: .04em; }
 .brand-mark { width: auto; height: auto; display: grid; place-items: center; border: none; background: transparent; color: inherit; border-radius: 0; transform: none; }
+.brand-mark img { display: block; border-radius: 14px; }
 .profile-row > span:nth-child(2) { min-width: 0; display: flex; flex: 1; flex-direction: column; gap: 4px; }
 .profile-row b { font-size: 12px; font-weight: 600; }
 .profile-row small { color: #93a89a; font-size: 10px; }
